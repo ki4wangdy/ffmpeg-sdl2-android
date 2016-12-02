@@ -180,7 +180,7 @@ Android_VideoInit(_THIS)
 
     Android_InitKeyboard();
 
-    Android_InitTouch();
+    //Android_InitTouch();
 
     Android_InitMouse();
 
