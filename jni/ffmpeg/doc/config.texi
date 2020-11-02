@@ -73,7 +73,7 @@
 @c @set have-armv8-external no
 @c @set have-neon-external no
 @set have-vfp-external yes
-@c @set have-vfpv3-external no
+@set have-vfpv3-external yes
 @set have-setend-external yes
 @c @set have-altivec-external no
 @c @set have-dcbzl-external no
@@ -117,7 +117,7 @@
 @c @set have-armv8-inline no
 @c @set have-neon-inline no
 @set have-vfp-inline yes
-@c @set have-vfpv3-inline no
+@set have-vfpv3-inline yes
 @set have-setend-inline yes
 @c @set have-altivec-inline no
 @c @set have-dcbzl-inline no
@@ -216,7 +216,7 @@
 @c @set have-opengl-gl3-h no
 @set have-poll-h yes
 @c @set have-soundcard-h no
-@c @set have-stdatomic-h no
+@set have-stdatomic-h yes
 @set have-sys-mman-h yes
 @set have-sys-param-h yes
 @set have-sys-resource-h yes
@@ -249,8 +249,8 @@
 @set have-ldexpf yes
 @set have-llrint yes
 @set have-llrintf yes
-@c @set have-log2 no
-@c @set have-log2f no
+@set have-log2 yes
+@set have-log2f yes
 @set have-log10f yes
 @set have-lrint yes
 @set have-lrintf yes
@@ -300,7 +300,7 @@
 @set have-mprotect yes
 @set have-nanosleep yes
 @c @set have-peeknamedpipe no
-@c @set have-posix-memalign no
+@set have-posix-memalign yes
 @c @set have-pthread-cancel no
 @c @set have-sched-getaffinity no
 @c @set have-setconsoletextattribute no
@@ -373,7 +373,7 @@
 @c @set have-vaapi-x11 no
 @c @set have-vdpau-x11 no
 @c @set have-winrt no
-@set config-doc yes
+@c @set config-doc no
 @c @set config-htmlpages no
 @set config-manpages yes
 @set config-podpages yes
