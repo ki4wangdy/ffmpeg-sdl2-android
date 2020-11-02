@@ -40,6 +40,7 @@
 #define BITSTREAM_READER_LE
 #include "avcodec.h"
 #include "get_bits.h"
+#include "bytestream.h"
 #include "internal.h"
 #include "mpegaudio.h"
 #include "mpegaudiodsp.h"
@@ -407,7 +408,12 @@ static int fix_coding_method_array(int sb, int channels,
             }
             for (k = 0; k < run; k++) {
                 if (j + k < 128) {
-                    if (coding_method[ch][sb + (j + k) / 64][(j + k) % 64] > coding_method[ch][sb][j]) {
+                    int sbjk = sb + (j + k) / 64;
+                    if (sbjk > 29) {
+                        SAMPLES_NEEDED
+                        continue;
+                    }
+                    if (coding_method[ch][sbjk][(j + k) % 64] > coding_method[ch][sb][j]) {
                         if (k > 0) {
                             SAMPLES_NEEDED
                             //not debugged, almost never used
@@ -1283,6 +1289,10 @@ static void qdm2_fft_decode_tones(QDM2Context *q, int duration,
             }
             offset += (n - 2);
         } else {
+            if (local_int_10 <= 2) {
+                av_log(NULL, AV_LOG_ERROR, "qdm2_fft_decode_tones() stuck\n");
+                return;
+            }
             offset += qdm2_get_vlc(gb, &vlc_tab_fft_tone_offset[local_int_8], 1, 2);
             while (offset >= (local_int_10 - 1)) {
                 offset       += (1 - (local_int_10 - 1));
@@ -1323,6 +1333,9 @@ static void qdm2_fft_decode_tones(QDM2Context *q, int duration,
 
         if (q->frequency_range > (local_int_14 + 1)) {
             int sub_packet = (local_int_20 + local_int_28);
+
+            if (q->fft_coefs_index + stereo >= FF_ARRAY_ELEMS(q->fft_coefs))
+                return;
 
             qdm2_fft_init_coefficient(q, sub_packet, offset, duration,
                                       channel, exp, phase);
@@ -1605,9 +1618,8 @@ static av_cold void qdm2_init_static_data(void) {
 static av_cold int qdm2_decode_init(AVCodecContext *avctx)
 {
     QDM2Context *s = avctx->priv_data;
-    uint8_t *extradata;
-    int extradata_size;
     int tmp_val, tmp, size;
+    GetByteContext gb;
 
     qdm2_init_static_data();
 
@@ -1650,55 +1662,39 @@ static av_cold int qdm2_decode_init(AVCodecContext *avctx)
         return AVERROR_INVALIDDATA;
     }
 
-    extradata      = avctx->extradata;
-    extradata_size = avctx->extradata_size;
+    bytestream2_init(&gb, avctx->extradata, avctx->extradata_size);
 
-    while (extradata_size > 7) {
-        if (!memcmp(extradata, "frmaQDM", 7))
+    while (bytestream2_get_bytes_left(&gb) > 8) {
+        if (bytestream2_peek_be64(&gb) == (((uint64_t)MKBETAG('f','r','m','a') << 32) |
+                                            (uint64_t)MKBETAG('Q','D','M','2')))
             break;
-        extradata++;
-        extradata_size--;
+        bytestream2_skip(&gb, 1);
     }
 
-    if (extradata_size < 12) {
+    if (bytestream2_get_bytes_left(&gb) < 12) {
         av_log(avctx, AV_LOG_ERROR, "not enough extradata (%i)\n",
-               extradata_size);
+               bytestream2_get_bytes_left(&gb));
         return AVERROR_INVALIDDATA;
     }
 
-    if (memcmp(extradata, "frmaQDM", 7)) {
-        av_log(avctx, AV_LOG_ERROR, "invalid headers, QDM? not found\n");
-        return AVERROR_INVALIDDATA;
-    }
+    bytestream2_skip(&gb, 8);
+    size = bytestream2_get_be32(&gb);
 
-    if (extradata[7] == 'C') {
-//        s->is_qdmc = 1;
-        avpriv_report_missing_feature(avctx, "QDMC version 1");
-        return AVERROR_PATCHWELCOME;
-    }
-
-    extradata += 8;
-    extradata_size -= 8;
-
-    size = AV_RB32(extradata);
-
-    if(size > extradata_size){
+    if (size > bytestream2_get_bytes_left(&gb)) {
         av_log(avctx, AV_LOG_ERROR, "extradata size too small, %i < %i\n",
-               extradata_size, size);
+               bytestream2_get_bytes_left(&gb), size);
         return AVERROR_INVALIDDATA;
     }
 
-    extradata += 4;
     av_log(avctx, AV_LOG_DEBUG, "size: %d\n", size);
-    if (AV_RB32(extradata) != MKBETAG('Q','D','C','A')) {
+    if (bytestream2_get_be32(&gb) != MKBETAG('Q','D','C','A')) {
         av_log(avctx, AV_LOG_ERROR, "invalid extradata, expecting QDCA\n");
         return AVERROR_INVALIDDATA;
     }
 
-    extradata += 8;
+    bytestream2_skip(&gb, 4);
 
-    avctx->channels = s->nb_channels = s->channels = AV_RB32(extradata);
-    extradata += 4;
+    avctx->channels = s->nb_channels = s->channels = bytestream2_get_be32(&gb);
     if (s->channels <= 0 || s->channels > MPA_MAX_CHANNELS) {
         av_log(avctx, AV_LOG_ERROR, "Invalid number of channels\n");
         return AVERROR_INVALIDDATA;
@@ -1706,25 +1702,23 @@ static av_cold int qdm2_decode_init(AVCodecContext *avctx)
     avctx->channel_layout = avctx->channels == 2 ? AV_CH_LAYOUT_STEREO :
                                                    AV_CH_LAYOUT_MONO;
 
-    avctx->sample_rate = AV_RB32(extradata);
-    extradata += 4;
-
-    avctx->bit_rate = AV_RB32(extradata);
-    extradata += 4;
-
-    s->group_size = AV_RB32(extradata);
-    extradata += 4;
-
-    s->fft_size = AV_RB32(extradata);
-    extradata += 4;
-
-    s->checksum_size = AV_RB32(extradata);
-    if (s->checksum_size >= 1U << 28) {
-        av_log(avctx, AV_LOG_ERROR, "data block size too large (%u)\n", s->checksum_size);
+    avctx->sample_rate = bytestream2_get_be32(&gb);
+    avctx->bit_rate = bytestream2_get_be32(&gb);
+    s->group_size = bytestream2_get_be32(&gb);
+    s->fft_size = bytestream2_get_be32(&gb);
+    s->checksum_size = bytestream2_get_be32(&gb);
+    if (s->checksum_size >= 1U << 28 || s->checksum_size <= 1) {
+        av_log(avctx, AV_LOG_ERROR, "data block size invalid (%u)\n", s->checksum_size);
         return AVERROR_INVALIDDATA;
     }
 
     s->fft_order = av_log2(s->fft_size) + 1;
+
+    // Fail on unknown fft order
+    if ((s->fft_order < 7) || (s->fft_order > 9)) {
+        avpriv_request_sample(avctx, "Unknown FFT order %d", s->fft_order);
+        return AVERROR_PATCHWELCOME;
+    }
 
     // something like max decodable tones
     s->group_order = av_log2(s->group_size) + 1;
@@ -1735,6 +1729,11 @@ static av_cold int qdm2_decode_init(AVCodecContext *avctx)
 
     s->sub_sampling = s->fft_order - 7;
     s->frequency_range = 255 / (1 << (2 - s->sub_sampling));
+
+    if (s->frame_size * 4 >> s->sub_sampling > MPA_FRAME_SIZE) {
+        avpriv_request_sample(avctx, "large frames");
+        return AVERROR_PATCHWELCOME;
+    }
 
     switch ((s->sub_sampling * 2 + s->channels - 1)) {
         case 0: tmp = 40; break;
@@ -1759,11 +1758,6 @@ static av_cold int qdm2_decode_init(AVCodecContext *avctx)
     else
         s->coeff_per_sb_select = 2;
 
-    // Fail on unknown fft order
-    if ((s->fft_order < 7) || (s->fft_order > 9)) {
-        avpriv_request_sample(avctx, "Unknown FFT order %d", s->fft_order);
-        return AVERROR_PATCHWELCOME;
-    }
     if (s->fft_size != (1 << (s->fft_order - 1))) {
         av_log(avctx, AV_LOG_ERROR, "FFT size %d not power of 2.\n", s->fft_size);
         return AVERROR_INVALIDDATA;

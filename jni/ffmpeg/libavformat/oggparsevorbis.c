@@ -230,6 +230,10 @@ static int fixup_vorbis_headers(AVFormatContext *as,
 
     len = priv->len[0] + priv->len[1] + priv->len[2];
     buf_len = len + len / 255 + 64;
+
+    if (*buf)
+        return AVERROR_INVALIDDATA;
+
     ptr = *buf = av_realloc(NULL, buf_len);
     if (!ptr)
         return AVERROR(ENOMEM);
@@ -383,7 +387,12 @@ static int vorbis_header(AVFormatContext *s, int idx)
             }
         }
     } else {
-        int ret = fixup_vorbis_headers(s, priv, &st->codecpar->extradata);
+        int ret;
+
+        if (priv->vp)
+             return AVERROR_INVALIDDATA;
+
+        ret = fixup_vorbis_headers(s, priv, &st->codecpar->extradata);
         if (ret < 0) {
             st->codecpar->extradata_size = 0;
             return ret;

@@ -25,6 +25,7 @@
 
 #include "avformat.h"
 #include "internal.h"
+#include "libavutil/dict.h"
 #include "libavutil/intreadwrite.h"
 #include "libavutil/tea.h"
 #include "libavutil/opt.h"
@@ -78,13 +79,14 @@ static int aa_read_header(AVFormatContext *s)
     AADemuxContext *c = s->priv_data;
     AVIOContext *pb = s->pb;
     AVStream *st;
+    int ret;
 
     /* parse .aa header */
     avio_skip(pb, 4); // file size
     avio_skip(pb, 4); // magic string
     toc_size = avio_rb32(pb); // TOC size
     avio_skip(pb, 4); // unidentified integer
-    if (toc_size > MAX_TOC_ENTRIES)
+    if (toc_size > MAX_TOC_ENTRIES || toc_size < 2)
         return AVERROR_INVALIDDATA;
     for (i = 0; i < toc_size; i++) { // read TOC
         avio_skip(pb, 4); // TOC entry index
@@ -101,27 +103,22 @@ static int aa_read_header(AVFormatContext *s)
         avio_skip(pb, 1); // unidentified integer
         nkey = avio_rb32(pb); // key string length
         nval = avio_rb32(pb); // value string length
-        if (nkey > sizeof(key)) {
-            avio_skip(pb, nkey);
-        } else {
-            avio_read(pb, key, nkey); // key string
-        }
-        if (nval > sizeof(val)) {
-            avio_skip(pb, nval);
-        } else {
-            avio_read(pb, val, nval); // value string
-        }
+        avio_get_str(pb, nkey, key, sizeof(key));
+        avio_get_str(pb, nval, val, sizeof(val));
         if (!strcmp(key, "codec")) {
             av_log(s, AV_LOG_DEBUG, "Codec is <%s>\n", val);
             strncpy(codec_name, val, sizeof(codec_name) - 1);
-        }
-        if (!strcmp(key, "HeaderSeed")) {
+        } else if (!strcmp(key, "HeaderSeed")) {
             av_log(s, AV_LOG_DEBUG, "HeaderSeed is <%s>\n", val);
             header_seed = atoi(val);
-        }
-        if (!strcmp(key, "HeaderKey")) { // this looks like "1234567890 1234567890 1234567890 1234567890"
+        } else if (!strcmp(key, "HeaderKey")) { // this looks like "1234567890 1234567890 1234567890 1234567890"
             av_log(s, AV_LOG_DEBUG, "HeaderKey is <%s>\n", val);
-            sscanf(val, "%u%u%u%u", &header_key_part[0], &header_key_part[1], &header_key_part[2], &header_key_part[3]);
+
+            ret = sscanf(val, "%"SCNu32"%"SCNu32"%"SCNu32"%"SCNu32,
+                   &header_key_part[0], &header_key_part[1], &header_key_part[2], &header_key_part[3]);
+            if (ret != 4)
+                return AVERROR_INVALIDDATA;
+
             for (idx = 0; idx < 4; idx++) {
                 AV_WB32(&header_key[idx * 4], header_key_part[idx]); // convert each part to BE!
             }
@@ -129,6 +126,8 @@ static int aa_read_header(AVFormatContext *s)
             for (i = 0; i < 16; i++)
                 av_log(s, AV_LOG_DEBUG, "%02x", header_key[i]);
             av_log(s, AV_LOG_DEBUG, "\n");
+        } else {
+            av_dict_set(&s->metadata, key, val, 0);
         }
     }
 
@@ -184,11 +183,13 @@ static int aa_read_header(AVFormatContext *s)
         st->codecpar->block_align = 19;
         st->codecpar->channels = 1;
         st->codecpar->sample_rate = 8500;
+        st->need_parsing = AVSTREAM_PARSE_FULL_RAW;
     } else if (!strcmp(codec_name, "acelp16")) {
         st->codecpar->codec_id = AV_CODEC_ID_SIPR;
         st->codecpar->block_align = 20;
         st->codecpar->channels = 1;
         st->codecpar->sample_rate = 16000;
+        st->need_parsing = AVSTREAM_PARSE_FULL_RAW;
     }
 
     /* determine, and jump to audio start offset */

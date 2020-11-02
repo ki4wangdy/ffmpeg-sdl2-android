@@ -247,6 +247,11 @@ static void init_band_stepsize(AVCodecContext *avctx,
         }
     }
 
+    if (band->f_stepsize > (INT_MAX >> 15)) {
+        band->f_stepsize = 0;
+        av_log(avctx, AV_LOG_ERROR, "stepsize out of range\n");
+    }
+
     band->i_stepsize = band->f_stepsize * (1 << 15);
 
     /* FIXME: In OpenJPEG code stepsize = stepsize * 0.5. Why?
@@ -506,6 +511,9 @@ int ff_jpeg2000_init_component(Jpeg2000Component *comp,
         // update precincts size: 2^n value
         reslevel->log2_prec_width  = codsty->log2_prec_widths[reslevelno];
         reslevel->log2_prec_height = codsty->log2_prec_heights[reslevelno];
+        if (!reslevel->log2_prec_width || !reslevel->log2_prec_height) {
+            return AVERROR_INVALIDDATA;
+        }
 
         /* Number of bands for each resolution level */
         if (reslevelno == 0)
@@ -538,6 +546,9 @@ int ff_jpeg2000_init_component(Jpeg2000Component *comp,
 
         reslevel->band = av_mallocz_array(reslevel->nbands, sizeof(*reslevel->band));
         if (!reslevel->band)
+            return AVERROR(ENOMEM);
+
+        if (reslevel->num_precincts_x * (uint64_t)reslevel->num_precincts_y * reslevel->nbands > avctx->max_pixels / sizeof(*reslevel->band->prec))
             return AVERROR(ENOMEM);
 
         for (bandno = 0; bandno < reslevel->nbands; bandno++, gbandno++) {

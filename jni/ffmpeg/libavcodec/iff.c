@@ -111,23 +111,23 @@ static const uint64_t plane8_lut[8][256] = {
     LUT8(4), LUT8(5), LUT8(6), LUT8(7),
 };
 
-#define LUT32(plane) {                                \
-             0,          0,          0,          0,   \
-             0,          0,          0, 1 << plane,   \
-             0,          0, 1 << plane,          0,   \
-             0,          0, 1 << plane, 1 << plane,   \
-             0, 1 << plane,          0,          0,   \
-             0, 1 << plane,          0, 1 << plane,   \
-             0, 1 << plane, 1 << plane,          0,   \
-             0, 1 << plane, 1 << plane, 1 << plane,   \
-    1 << plane,          0,          0,          0,   \
-    1 << plane,          0,          0, 1 << plane,   \
-    1 << plane,          0, 1 << plane,          0,   \
-    1 << plane,          0, 1 << plane, 1 << plane,   \
-    1 << plane, 1 << plane,          0,          0,   \
-    1 << plane, 1 << plane,          0, 1 << plane,   \
-    1 << plane, 1 << plane, 1 << plane,          0,   \
-    1 << plane, 1 << plane, 1 << plane, 1 << plane,   \
+#define LUT32(plane) {                                    \
+              0,           0,           0,           0,   \
+              0,           0,           0, 1U << plane,   \
+              0,           0, 1U << plane,           0,   \
+              0,           0, 1U << plane, 1U << plane,   \
+              0, 1U << plane,           0,           0,   \
+              0, 1U << plane,           0, 1U << plane,   \
+              0, 1U << plane, 1U << plane,           0,   \
+              0, 1U << plane, 1U << plane, 1U << plane,   \
+    1U << plane,           0,           0,           0,   \
+    1U << plane,           0,           0, 1U << plane,   \
+    1U << plane,           0, 1U << plane,           0,   \
+    1U << plane,           0, 1U << plane, 1U << plane,   \
+    1U << plane, 1U << plane,           0,           0,   \
+    1U << plane, 1U << plane,           0, 1U << plane,   \
+    1U << plane, 1U << plane, 1U << plane,           0,   \
+    1U << plane, 1U << plane, 1U << plane, 1U << plane,   \
 }
 
 // 32 planes * 4-bit mask * 4 lookup tables each
@@ -180,6 +180,10 @@ static int cmap_read_palette(AVCodecContext *avctx, uint32_t *pal)
             pal[i] = 0xFF000000 | gray2rgb((i * 255) >> avctx->bits_per_coded_sample);
     }
     if (s->masking == MASK_HAS_MASK) {
+        if ((1 << avctx->bits_per_coded_sample) < count) {
+            avpriv_request_sample(avctx, "overlapping mask");
+            return AVERROR_PATCHWELCOME;
+        }
         memcpy(pal + (1 << avctx->bits_per_coded_sample), pal, count * 4);
         for (i = 0; i < count; i++)
             pal[i] &= 0xFFFFFF;
@@ -280,6 +284,16 @@ static int extract_header(AVCodecContext *const avctx,
         for (i = 0; i < 16; i++)
             s->tvdc[i] = bytestream_get_be16(&buf);
 
+        if (s->ham) {
+            if (s->bpp > 8) {
+                av_log(avctx, AV_LOG_ERROR, "Invalid number of hold bits for HAM: %u\n", s->ham);
+                return AVERROR_INVALIDDATA;
+            } if (s->ham != (s->bpp > 6 ? 6 : 4)) {
+                av_log(avctx, AV_LOG_ERROR, "Invalid number of hold bits for HAM: %u, BPP: %u\n", s->ham, s->bpp);
+                return AVERROR_INVALIDDATA;
+            }
+        }
+
         if (s->masking == MASK_HAS_MASK) {
             if (s->bpp >= 8 && !s->ham) {
                 avctx->pix_fmt = AV_PIX_FMT_RGB32;
@@ -307,10 +321,9 @@ static int extract_header(AVCodecContext *const avctx,
         if (!s->bpp || s->bpp > 32) {
             av_log(avctx, AV_LOG_ERROR, "Invalid number of bitplanes: %u\n", s->bpp);
             return AVERROR_INVALIDDATA;
-        } else if (s->ham >= 8) {
-            av_log(avctx, AV_LOG_ERROR, "Invalid number of hold bits for HAM: %u\n", s->ham);
-            return AVERROR_INVALIDDATA;
         }
+        if (s->video_size && s->planesize * s->bpp * avctx->height > s->video_size)
+            return AVERROR_INVALIDDATA;
 
         av_freep(&s->ham_buf);
         av_freep(&s->ham_palbuf);
@@ -319,13 +332,17 @@ static int extract_header(AVCodecContext *const avctx,
             int i, count = FFMIN(palette_size / 3, 1 << s->ham);
             int ham_count;
             const uint8_t *const palette = avctx->extradata + AV_RB16(avctx->extradata);
+            int extra_space = 1;
+
+            if (avctx->codec_tag == MKTAG('P', 'B', 'M', ' ') && s->ham == 4)
+                extra_space = 4;
 
             s->ham_buf = av_malloc((s->planesize * 8) + AV_INPUT_BUFFER_PADDING_SIZE);
             if (!s->ham_buf)
                 return AVERROR(ENOMEM);
 
             ham_count = 8 * (1 << s->ham);
-            s->ham_palbuf = av_malloc((ham_count << !!(s->masking == MASK_HAS_MASK)) * sizeof (uint32_t) + AV_INPUT_BUFFER_PADDING_SIZE);
+            s->ham_palbuf = av_malloc(extra_space * (ham_count << !!(s->masking == MASK_HAS_MASK)) * sizeof (uint32_t) + AV_INPUT_BUFFER_PADDING_SIZE);
             if (!s->ham_palbuf) {
                 av_freep(&s->ham_buf);
                 return AVERROR(ENOMEM);
@@ -371,6 +388,8 @@ static av_cold int decode_end(AVCodecContext *avctx)
     av_freep(&s->planebuf);
     av_freep(&s->ham_buf);
     av_freep(&s->ham_palbuf);
+    av_freep(&s->mask_buf);
+    av_freep(&s->mask_palbuf);
     av_freep(&s->video[0]);
     av_freep(&s->video[1]);
     av_freep(&s->pal);
@@ -413,7 +432,7 @@ static av_cold int decode_init(AVCodecContext *avctx)
     if ((err = av_image_check_size(avctx->width, avctx->height, 0, avctx)))
         return err;
     s->planesize = FFALIGN(avctx->width, 16) >> 3; // Align plane size in bits to word-boundary
-    s->planebuf  = av_malloc(s->planesize + AV_INPUT_BUFFER_PADDING_SIZE);
+    s->planebuf  = av_malloc(s->planesize * avctx->height + AV_INPUT_BUFFER_PADDING_SIZE);
     if (!s->planebuf)
         return AVERROR(ENOMEM);
 
@@ -421,6 +440,8 @@ static av_cold int decode_init(AVCodecContext *avctx)
 
     if (avctx->codec_tag == MKTAG('A', 'N', 'I', 'M')) {
         s->video_size = FFALIGN(avctx->width, 2) * avctx->height * s->bpp;
+        if (!s->video_size)
+            return AVERROR_INVALIDDATA;
         s->video[0] = av_calloc(FFALIGN(avctx->width, 2) * avctx->height, s->bpp);
         s->video[1] = av_calloc(FFALIGN(avctx->width, 2) * avctx->height, s->bpp);
         s->pal = av_calloc(256, sizeof(*s->pal));
@@ -443,11 +464,12 @@ static av_cold int decode_init(AVCodecContext *avctx)
  */
 static void decodeplane8(uint8_t *dst, const uint8_t *buf, int buf_size, int plane)
 {
-    const uint64_t *lut = plane8_lut[plane];
+    const uint64_t *lut;
     if (plane >= 8) {
         av_log(NULL, AV_LOG_WARNING, "Ignoring extra planes beyond 8\n");
         return;
     }
+    lut = plane8_lut[plane];
     do {
         uint64_t v = AV_RN64A(dst) | lut[*buf++];
         AV_WN64A(dst, v);
@@ -557,6 +579,76 @@ static int decode_byterun(uint8_t *dst, int dst_size,
     return bytestream2_tell(gb);
 }
 
+static int decode_byterun2(uint8_t *dst, int height, int line_size,
+                           GetByteContext *gb)
+{
+    GetByteContext cmds;
+    unsigned count;
+    int i, y_pos = 0, x_pos = 0;
+
+    if (bytestream2_get_be32(gb) != MKBETAG('V', 'D', 'A', 'T'))
+        return 0;
+
+    bytestream2_skip(gb, 4);
+    count = bytestream2_get_be16(gb) - 2;
+    if (bytestream2_get_bytes_left(gb) < count)
+        return 0;
+
+    bytestream2_init(&cmds, gb->buffer, count);
+    bytestream2_skip(gb, count);
+
+    for (i = 0; i < count && x_pos < line_size; i++) {
+        int8_t cmd = bytestream2_get_byte(&cmds);
+        int l, r;
+
+        if (cmd == 0) {
+            l = bytestream2_get_be16(gb);
+            while (l-- > 0 && x_pos < line_size) {
+                dst[x_pos + y_pos   * line_size    ] = bytestream2_get_byte(gb);
+                dst[x_pos + y_pos++ * line_size + 1] = bytestream2_get_byte(gb);
+                if (y_pos >= height) {
+                    y_pos  = 0;
+                    x_pos += 2;
+                }
+            }
+        } else if (cmd < 0) {
+            l = -cmd;
+            while (l-- > 0 && x_pos < line_size) {
+                dst[x_pos + y_pos   * line_size    ] = bytestream2_get_byte(gb);
+                dst[x_pos + y_pos++ * line_size + 1] = bytestream2_get_byte(gb);
+                if (y_pos >= height) {
+                    y_pos  = 0;
+                    x_pos += 2;
+                }
+            }
+        } else if (cmd == 1) {
+            l = bytestream2_get_be16(gb);
+            r = bytestream2_get_be16(gb);
+            while (l-- > 0 && x_pos < line_size) {
+                dst[x_pos + y_pos   * line_size    ] = r >> 8;
+                dst[x_pos + y_pos++ * line_size + 1] = r & 0xFF;
+                if (y_pos >= height) {
+                    y_pos  = 0;
+                    x_pos += 2;
+                }
+            }
+        } else {
+            l = cmd;
+            r = bytestream2_get_be16(gb);
+            while (l-- > 0 && x_pos < line_size) {
+                dst[x_pos + y_pos   * line_size    ] = r >> 8;
+                dst[x_pos + y_pos++ * line_size + 1] = r & 0xFF;
+                if (y_pos >= height) {
+                    y_pos  = 0;
+                    x_pos += 2;
+                }
+            }
+        }
+    }
+
+    return bytestream2_tell(gb);
+}
+
 #define DECODE_RGBX_COMMON(type) \
     if (!length) { \
         length = bytestream2_get_byte(gb); \
@@ -625,13 +717,15 @@ static void decode_deep_rle32(uint8_t *dst, const uint8_t *src, int src_size, in
 {
     const uint8_t *src_end = src + src_size;
     int x = 0, y = 0, i;
-    while (src + 5 <= src_end) {
+    while (src_end - src >= 5) {
         int opcode;
         opcode = *(int8_t *)src++;
         if (opcode >= 0) {
             int size = opcode + 1;
             for (i = 0; i < size; i++) {
-                int length = FFMIN(size - i, width);
+                int length = FFMIN(size - i, width - x);
+                if (src_end - src < length * 4)
+                    return;
                 memcpy(dst + y*linesize + x * 4, src, length * 4);
                 src += length * 4;
                 x += length;
@@ -864,7 +958,7 @@ static void decode_delta_j(uint8_t *dst,
                 offset = bytestream2_get_be16(&gb);
 
                 if (cols * bpp == 0 || bytestream2_get_bytes_left(&gb) < cols * bpp) {
-                    av_log(NULL, AV_LOG_ERROR, "cols*bpp is invalid (%d*%d)", cols, bpp);
+                    av_log(NULL, AV_LOG_ERROR, "cols*bpp is invalid (%"PRId32"*%d)", cols, bpp);
                     return;
                 }
 
@@ -912,7 +1006,7 @@ static void decode_delta_j(uint8_t *dst,
                         unsigned noffset = offset + (r * pitch) + d * planepitch;
 
                         if (!bytes || bytestream2_get_bytes_left(&gb) < bytes) {
-                            av_log(NULL, AV_LOG_ERROR, "bytes %d is invalid", bytes);
+                            av_log(NULL, AV_LOG_ERROR, "bytes %"PRId32" is invalid", bytes);
                             return;
                         }
 
@@ -1060,6 +1154,9 @@ static void decode_long_vertical_delta(uint8_t *dst,
                         x = bytestream2_get_be32(&dgb);
                     }
 
+                    if (ofsdst + (opcode - 1LL) * dstpitch > bytestream2_size_p(&pb))
+                        return;
+
                     while (opcode) {
                         bytestream2_seek_p(&pb, ofsdst, SEEK_SET);
                         if (h && (j == (ncolumns - 1))) {
@@ -1200,6 +1297,9 @@ static void decode_long_vertical_delta2(uint8_t *dst,
                         x = bytestream2_get_be32(&gb);
                     }
 
+                    if (ofsdst + (opcode - 1LL) * dstpitch > bytestream2_size_p(&pb))
+                        return;
+
                     while (opcode && bytestream2_get_bytes_left_p(&pb) > 1) {
                         bytestream2_seek_p(&pb, ofsdst, SEEK_SET);
                         if (h && (j == ncolumns - 1))
@@ -1269,17 +1369,18 @@ static void decode_delta_d(uint8_t *dst,
             bytestream2_seek_p(&pb, (offset / planepitch_byte) * pitch + (offset % planepitch_byte) + k * planepitch, SEEK_SET);
             if (opcode >= 0) {
                 uint32_t x = bytestream2_get_be32(&gb);
+                if (opcode && 4 + (opcode - 1LL) * pitch > bytestream2_get_bytes_left_p(&pb))
+                    continue;
                 while (opcode && bytestream2_get_bytes_left_p(&pb) > 0) {
                     bytestream2_put_be32(&pb, x);
                     bytestream2_skip_p(&pb, pitch - 4);
                     opcode--;
                 }
             } else {
-                opcode = -opcode;
                 while (opcode && bytestream2_get_bytes_left(&gb) > 0) {
                     bytestream2_put_be32(&pb, bytestream2_get_be32(&gb));
                     bytestream2_skip_p(&pb, pitch - 4);
-                    opcode--;
+                    opcode++;
                 }
             }
             entries--;
@@ -1442,7 +1543,7 @@ static int decode_frame(AVCodecContext *avctx,
     buf_size -= bytestream2_tell(gb);
     desc = av_pix_fmt_desc_get(avctx->pix_fmt);
 
-    if (!s->init && avctx->bits_per_coded_sample <= 8 &&
+    if (!s->init && avctx->bits_per_coded_sample <= 8 - (s->masking == MASK_HAS_MASK) &&
         avctx->pix_fmt == AV_PIX_FMT_PAL8) {
         if ((res = cmap_read_palette(avctx, (uint32_t *)frame->data[1])) < 0)
             return res;
@@ -1547,6 +1648,8 @@ static int decode_frame(AVCodecContext *avctx,
                 }
             } else
                 return unsupported(avctx);
+        } else {
+            return unsupported(avctx);
         }
         break;
     case 0x1:
@@ -1621,6 +1724,47 @@ static int decode_frame(AVCodecContext *avctx,
                 decode_deep_rle32(frame->data[0], buf, buf_size, avctx->width, avctx->height, frame->linesize[0]);
             else
                 return unsupported(avctx);
+        } else if (avctx->codec_tag == MKTAG('A', 'C', 'B', 'M')) {
+            if (avctx->pix_fmt == AV_PIX_FMT_PAL8 || avctx->pix_fmt == AV_PIX_FMT_GRAY8) {
+                memset(frame->data[0], 0, avctx->height * frame->linesize[0]);
+                for (plane = 0; plane < s->bpp; plane++) {
+                    for (y = 0; y < avctx->height && buf < buf_end; y++) {
+                        uint8_t *row = &frame->data[0][y * frame->linesize[0]];
+                        decodeplane8(row, buf, FFMIN(s->planesize, buf_end - buf), plane);
+                        buf += s->planesize;
+                    }
+                }
+            } else if (s->ham) { // HAM to AV_PIX_FMT_BGR32
+                memset(frame->data[0], 0, avctx->height * frame->linesize[0]);
+                for (y = 0; y < avctx->height; y++) {
+                    uint8_t *row = &frame->data[0][y * frame->linesize[0]];
+                    memset(s->ham_buf, 0, s->planesize * 8);
+                    for (plane = 0; plane < s->bpp; plane++) {
+                        const uint8_t * start = buf + (plane * avctx->height + y) * s->planesize;
+                        if (start >= buf_end)
+                            break;
+                        decodeplane8(s->ham_buf, start, FFMIN(s->planesize, buf_end - start), plane);
+                    }
+                    decode_ham_plane32((uint32_t *)row, s->ham_buf, s->ham_palbuf, s->planesize);
+                }
+            } else {
+                return unsupported(avctx);
+            }
+        } else {
+            return unsupported(avctx);
+        }
+        break;
+    case 0x2:
+        if (avctx->codec_tag == MKTAG('I', 'L', 'B', 'M') && avctx->pix_fmt == AV_PIX_FMT_PAL8) {
+            for (plane = 0; plane < s->bpp; plane++) {
+                decode_byterun2(s->planebuf, avctx->height, s->planesize, gb);
+                for (y = 0; y < avctx->height; y++) {
+                    uint8_t *row = &frame->data[0][y * frame->linesize[0]];
+                    decodeplane8(row, s->planebuf + s->planesize * y, s->planesize, plane);
+                }
+            }
+        } else {
+            return unsupported(avctx);
         }
         break;
     case 0x4:
@@ -1765,6 +1909,7 @@ AVCodec ff_iff_ilbm_decoder = {
     .init           = decode_init,
     .close          = decode_end,
     .decode         = decode_frame,
+    .caps_internal  = FF_CODEC_CAP_INIT_CLEANUP,
     .capabilities   = AV_CODEC_CAP_DR1,
 };
 #endif

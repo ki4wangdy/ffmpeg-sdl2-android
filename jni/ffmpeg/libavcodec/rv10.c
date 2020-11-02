@@ -388,9 +388,9 @@ static int rv20_decode_picture_header(RVDecContext *rv)
             // attempt to keep aspect during typical resolution switches
             if (!old_aspect.num)
                 old_aspect = (AVRational){1, 1};
-            if (2 * new_w * s->height == new_h * s->width)
+            if (2 * (int64_t)new_w * s->height == (int64_t)new_h * s->width)
                 s->avctx->sample_aspect_ratio = av_mul_q(old_aspect, (AVRational){2, 1});
-            if (new_w * s->height == 2 * new_h * s->width)
+            if ((int64_t)new_w * s->height == 2 * (int64_t)new_h * s->width)
                 s->avctx->sample_aspect_ratio = av_mul_q(old_aspect, (AVRational){1, 2});
 
             ret = ff_set_dimensions(s->avctx, new_w, new_h);
@@ -670,7 +670,7 @@ static int rv10_decode_packet(AVCodecContext *avctx, const uint8_t *buf,
         }
         if (s->pict_type != AV_PICTURE_TYPE_B)
             ff_h263_update_motion_val(s);
-        ff_mpv_decode_mb(s, s->block);
+        ff_mpv_reconstruct_mb(s, s->block);
         if (s->loop_filter)
             ff_h263_loop_filter(s);
 

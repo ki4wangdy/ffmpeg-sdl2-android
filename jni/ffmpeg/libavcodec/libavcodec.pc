@@ -1,14 +1,14 @@
 prefix=./ffmpeg_android
 exec_prefix=${prefix}
-libdir=${prefix}/lib
-includedir=${prefix}/include
+libdir=./ffmpeg_android/lib
+includedir=./ffmpeg_android/include
 
 Name: libavcodec
 Description: FFmpeg codec library
-Version: 57.64.101
-Requires: libswresample >= 2.3.100, libavutil >= 55.34.100
+Version: 57.107.100
+Requires: libswresample >= 2.9.100, libavutil >= 55.78.100
 Requires.private: 
 Conflicts:
-Libs: -L${libdir}  -lavcodec -lx264 -lm -lz -pthread
+Libs: -L${libdir}  -lavcodec -lx264 -lm -lz -pthread -pthread
 Libs.private: 
 Cflags: -I${includedir}

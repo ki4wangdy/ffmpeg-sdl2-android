@@ -227,7 +227,7 @@ static int tgv_decode_inter(TgvContext *s, AVFrame *frame,
         for (x = 0; x < s->avctx->width / 4; x++) {
             unsigned int vector = get_bits(&gb, vector_bits);
             const uint8_t *src;
-            int src_stride;
+            ptrdiff_t src_stride;
 
             if (vector < num_mvs) {
                 int mx = x * 4 + s->mv_codebook[vector][0];
@@ -299,6 +299,9 @@ static int tgv_decode_frame(AVCodecContext *avctx,
         for(i = 0; i < pal_count && i < AVPALETTE_COUNT && buf_end - buf >= 3; i++) {
             s->palette[i] = 0xFFU << 24 | AV_RB24(buf);
             buf += 3;
+        }
+        if (buf_end - buf < 5) {
+            return AVERROR_INVALIDDATA;
         }
     }
 

@@ -373,9 +373,11 @@ int ff_h264_build_ref_list(H264Context *h, H264SliceContext *sl)
                 av_assert0(0);
             }
 
-            if (i < 0) {
+            if (i < 0 || mismatches_ref(h, ref)) {
                 av_log(h->avctx, AV_LOG_ERROR,
-                       "reference picture missing during reorder\n");
+                       i < 0 ? "reference picture missing during reorder\n" :
+                               "mismatching reference\n"
+                      );
                 memset(&sl->ref_list[list][index], 0, sizeof(sl->ref_list[0][0])); // FIXME
             } else {
                 for (i = index; i + 1 < sl->ref_count[list]; i++) {
@@ -571,8 +573,7 @@ void ff_h264_remove_all_refs(H264Context *h)
 
     if (h->short_ref_count && !h->last_pic_for_ec.f->data[0]) {
         ff_h264_unref_picture(h, &h->last_pic_for_ec);
-        if (h->short_ref[0]->f->buf[0])
-            ff_h264_ref_picture(h, &h->last_pic_for_ec, h->short_ref[0]);
+        ff_h264_ref_picture(h, &h->last_pic_for_ec, h->short_ref[0]);
     }
 
     for (i = 0; i < h->short_ref_count; i++) {
@@ -807,6 +808,7 @@ int ff_h264_execute_ref_pic_marking(H264Context *h)
         }
     }
 
+    // Detect unmarked random access points
     if (   err >= 0
         && h->long_ref_count==0
         && (   h->short_ref_count<=2
@@ -847,15 +849,6 @@ int ff_h264_decode_ref_pic_marking(H264SliceContext *sl, GetBitContext *gb,
                     mmco[i].short_pic_num =
                         (sl->curr_pic_num - get_ue_golomb_long(gb) - 1) &
                             (sl->max_pic_num - 1);
-#if 0
-                    if (mmco[i].short_pic_num >= h->short_ref_count ||
-                        !h->short_ref[mmco[i].short_pic_num]) {
-                        av_log(s->avctx, AV_LOG_ERROR,
-                               "illegal short ref in memory management control "
-                               "operation %d\n", mmco);
-                        return -1;
-                    }
-#endif
                 }
                 if (opcode == MMCO_SHORT2LONG || opcode == MMCO_LONG2UNUSED ||
                     opcode == MMCO_LONG || opcode == MMCO_SET_MAX_LONG) {

@@ -29,6 +29,7 @@
 
 #include "libavutil/intreadwrite.h"
 #include "libavutil/intfloat.h"
+#include "libavcodec/internal.h"
 #include "avformat.h"
 #include "internal.h"
 
@@ -58,8 +59,10 @@
 #define GET_LIST_HEADER() \
     fourcc_tag = avio_rl32(pb); \
     size       = avio_rl32(pb); \
-    if (fourcc_tag != LIST_TAG) \
-        return AVERROR_INVALIDDATA; \
+    if (fourcc_tag != LIST_TAG) { \
+        ret = AVERROR_INVALIDDATA; \
+        goto fail; \
+    } \
     fourcc_tag = avio_rl32(pb);
 
 typedef struct AudioTrack {
@@ -153,13 +156,21 @@ static int parse_strk(AVFormatContext *s,
     fourxm->tracks[track].audio_pts   = 0;
 
     if (fourxm->tracks[track].channels    <= 0 ||
+        fourxm->tracks[track].channels     > FF_SANE_NB_CHANNELS ||
         fourxm->tracks[track].sample_rate <= 0 ||
-        fourxm->tracks[track].bits        <= 0) {
+        fourxm->tracks[track].bits        <= 0 ||
+        fourxm->tracks[track].bits         > INT_MAX / FF_SANE_NB_CHANNELS) {
         av_log(s, AV_LOG_ERROR, "audio header invalid\n");
         return AVERROR_INVALIDDATA;
     }
     if (!fourxm->tracks[track].adpcm && fourxm->tracks[track].bits<8) {
         av_log(s, AV_LOG_ERROR, "bits unspecified for non ADPCM\n");
+        return AVERROR_INVALIDDATA;
+    }
+
+    if (fourxm->tracks[track].sample_rate > INT64_MAX / fourxm->tracks[track].bits / fourxm->tracks[track].channels) {
+        av_log(s, AV_LOG_ERROR, "Overflow during bit rate calculation %d * %d * %d\n",
+               fourxm->tracks[track].sample_rate, fourxm->tracks[track].bits, fourxm->tracks[track].channels);
         return AVERROR_INVALIDDATA;
     }
 
@@ -178,7 +189,7 @@ static int parse_strk(AVFormatContext *s,
     st->codecpar->channels              = fourxm->tracks[track].channels;
     st->codecpar->sample_rate           = fourxm->tracks[track].sample_rate;
     st->codecpar->bits_per_coded_sample = fourxm->tracks[track].bits;
-    st->codecpar->bit_rate              = st->codecpar->channels *
+    st->codecpar->bit_rate              = (int64_t)st->codecpar->channels *
                                           st->codecpar->sample_rate *
                                           st->codecpar->bits_per_coded_sample;
     st->codecpar->block_align           = st->codecpar->channels *
@@ -201,12 +212,13 @@ static int fourxm_read_header(AVFormatContext *s)
     unsigned int size;
     int header_size;
     FourxmDemuxContext *fourxm = s->priv_data;
-    unsigned char *header;
+    unsigned char *header = NULL;
     int i, ret;
 
     fourxm->track_count = 0;
     fourxm->tracks      = NULL;
     fourxm->fps         = (AVRational){1,1};
+    fourxm->video_stream_index = -1;
 
     /* skip the first 3 32-bit numbers */
     avio_skip(pb, 12);
@@ -312,6 +324,8 @@ static int fourxm_read_packet(AVFormatContext *s,
         case cfr2_TAG:
             /* allocate 8 more bytes than 'size' to account for fourcc
              * and size */
+            if (fourxm->video_stream_index < 0)
+                return AVERROR_INVALIDDATA;
             if (size + 8 < size || av_new_packet(pkt, size + 8))
                 return AVERROR(EIO);
             pkt->stream_index = fourxm->video_stream_index;

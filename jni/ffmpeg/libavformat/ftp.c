@@ -206,6 +206,9 @@ static int ftp_send_command(FTPContext *s, const char *command,
     if (response)
         *response = NULL;
 
+    if (!s->conn_control)
+        return AVERROR(EIO);
+
     if ((err = ffurl_write(s->conn_control, command, strlen(command))) < 0)
         return err;
     if (!err)
@@ -386,7 +389,7 @@ static int ftp_file_size(FTPContext *s)
     static const int size_codes[] = {213, 0};
 
     snprintf(command, sizeof(command), "SIZE %s\r\n", s->path);
-    if (ftp_send_command(s, command, size_codes, &res) == 213 && res) {
+    if (ftp_send_command(s, command, size_codes, &res) == 213 && res && strlen(res) > 4) {
         s->filesize = strtoll(&res[4], NULL, 10);
     } else {
         s->filesize = -1;

@@ -431,7 +431,7 @@ static av_cold int vc1_decode_init(AVCodecContext *avctx)
     v->output_height = avctx->height;
 
     if (!avctx->extradata_size || !avctx->extradata)
-        return -1;
+        return AVERROR_INVALIDDATA;
     v->s.avctx = avctx;
 
     if ((ret = ff_vc1_init_common(v)) < 0)
@@ -450,6 +450,11 @@ static av_cold int vc1_decode_init(AVCodecContext *avctx)
         if ((ret = ff_vc1_decode_sequence_header(avctx, v, &gb)) < 0)
           return ret;
 
+        if (avctx->codec_id == AV_CODEC_ID_WMV3IMAGE && !v->res_sprite) {
+            avpriv_request_sample(avctx, "Non sprite WMV3IMAGE");
+            return AVERROR_PATCHWELCOME;
+        }
+
         count = avctx->extradata_size*8 - get_bits_count(&gb);
         if (count > 0) {
             av_log(avctx, AV_LOG_INFO, "Extra data: %i bits left, value: %X\n",
@@ -467,7 +472,7 @@ static av_cold int vc1_decode_init(AVCodecContext *avctx)
 
         if (avctx->extradata_size < 16) {
             av_log(avctx, AV_LOG_ERROR, "Extradata size too small: %i\n", avctx->extradata_size);
-            return -1;
+            return AVERROR_INVALIDDATA;
         }
 
         buf2  = av_mallocz(avctx->extradata_size + AV_INPUT_BUFFER_PADDING_SIZE);
@@ -503,7 +508,7 @@ static av_cold int vc1_decode_init(AVCodecContext *avctx)
         av_free(buf2);
         if (!seq_initialized || !ep_initialized) {
             av_log(avctx, AV_LOG_ERROR, "Incomplete extradata\n");
-            return -1;
+            return AVERROR_INVALIDDATA;
         }
         v->res_sprite = (avctx->codec_id == AV_CODEC_ID_VC1IMAGE);
     }
@@ -571,14 +576,21 @@ static av_cold int vc1_decode_init(AVCodecContext *avctx)
         if (v->sprite_width  > 1 << 14 ||
             v->sprite_height > 1 << 14 ||
             v->output_width  > 1 << 14 ||
-            v->output_height > 1 << 14) return -1;
+            v->output_height > 1 << 14) {
+            ret = AVERROR_INVALIDDATA;
+            goto error;
+        }
 
         if ((v->sprite_width&1) || (v->sprite_height&1)) {
             avpriv_request_sample(avctx, "odd sprites support");
-            return AVERROR_PATCHWELCOME;
+            ret = AVERROR_PATCHWELCOME;
+            goto error;
         }
     }
     return 0;
+error:
+    av_frame_free(&v->sprite_output_frame);
+    return ret;
 }
 
 /** Close a VC1/WMV3 decoder
@@ -634,6 +646,8 @@ static int vc1_decode_frame(AVCodecContext *avctx, void *data,
         uint8_t *buf;
         GetBitContext gb;
         int mby_start;
+        const uint8_t *rawbuf;
+        int raw_size;
     } *slices = NULL, *tmp;
 
     v->second_field = 0;
@@ -716,6 +730,8 @@ static int vc1_decode_frame(AVCodecContext *avctx, void *data,
                     /* assuming that the field marker is at the exact middle,
                        hope it's correct */
                     slices[n_slices].mby_start = s->mb_height + 1 >> 1;
+                    slices[n_slices].rawbuf = start;
+                    slices[n_slices].raw_size = size + 4;
                     n_slices1 = n_slices - 1; // index of the last slice of the first field
                     n_slices++;
                     break;
@@ -743,6 +759,8 @@ static int vc1_decode_frame(AVCodecContext *avctx, void *data,
                     init_get_bits(&slices[n_slices].gb, slices[n_slices].buf,
                                   buf_size3 << 3);
                     slices[n_slices].mby_start = get_bits(&slices[n_slices].gb, 9);
+                    slices[n_slices].rawbuf = start;
+                    slices[n_slices].raw_size = size + 4;
                     n_slices++;
                     break;
                 }
@@ -779,6 +797,8 @@ static int vc1_decode_frame(AVCodecContext *avctx, void *data,
                 init_get_bits(&slices[n_slices].gb, slices[n_slices].buf,
                               buf_size3 << 3);
                 slices[n_slices].mby_start = s->mb_height + 1 >> 1;
+                slices[n_slices].rawbuf = divider;
+                slices[n_slices].raw_size = buf + buf_size - divider;
                 n_slices1 = n_slices - 1;
                 n_slices++;
             }
@@ -857,7 +877,12 @@ static int vc1_decode_frame(AVCodecContext *avctx, void *data,
         ret = AVERROR_INVALIDDATA;
         goto err;
     }
-
+    if ((avctx->codec_id == AV_CODEC_ID_WMV3IMAGE || avctx->codec_id == AV_CODEC_ID_VC1IMAGE)
+        && v->field_mode) {
+        av_log(v->s.avctx, AV_LOG_ERROR, "Sprite decoder: expected Frames not Fields\n");
+        ret = AVERROR_INVALIDDATA;
+        goto err;
+    }
     if ((s->mb_height >> v->field_mode) == 0) {
         av_log(v->s.avctx, AV_LOG_ERROR, "image too short\n");
         ret = AVERROR_INVALIDDATA;
@@ -921,6 +946,7 @@ static int vc1_decode_frame(AVCodecContext *avctx, void *data,
     } else
 #endif
     if (avctx->hwaccel) {
+        s->mb_y = 0;
         if (v->field_mode && buf_start_second_field) {
             // decode first field
             s->picture_structure = PICT_BOTTOM_FIELD - v->tff;
@@ -953,8 +979,36 @@ static int vc1_decode_frame(AVCodecContext *avctx, void *data,
             s->picture_structure = PICT_FRAME;
             if ((ret = avctx->hwaccel->start_frame(avctx, buf_start, (buf + buf_size) - buf_start)) < 0)
                 goto err;
-            if ((ret = avctx->hwaccel->decode_slice(avctx, buf_start, (buf + buf_size) - buf_start)) < 0)
-                goto err;
+
+            if (n_slices == 0) {
+                // no slices, decode the frame as-is
+                if ((ret = avctx->hwaccel->decode_slice(avctx, buf_start, (buf + buf_size) - buf_start)) < 0)
+                    goto err;
+            } else {
+                // decode the frame part as the first slice
+                if ((ret = avctx->hwaccel->decode_slice(avctx, buf_start, slices[0].rawbuf - buf_start)) < 0)
+                    goto err;
+
+                // and process the slices as additional slices afterwards
+                for (i = 0 ; i < n_slices; i++) {
+                    s->gb = slices[i].gb;
+                    s->mb_y = slices[i].mby_start;
+
+                    v->pic_header_flag = get_bits1(&s->gb);
+                    if (v->pic_header_flag) {
+                        if (ff_vc1_parse_frame_header_adv(v, &s->gb) < 0) {
+                            av_log(v->s.avctx, AV_LOG_ERROR, "Slice header damaged\n");
+                            ret = AVERROR_INVALIDDATA;
+                            if (avctx->err_recognition & AV_EF_EXPLODE)
+                                goto err;
+                            continue;
+                        }
+                    }
+
+                    if ((ret = avctx->hwaccel->decode_slice(avctx, slices[i].rawbuf, slices[i].raw_size)) < 0)
+                        goto err;
+                }
+            }
             if ((ret = avctx->hwaccel->end_frame(avctx)) < 0)
                 goto err;
         }
@@ -963,7 +1017,7 @@ static int vc1_decode_frame(AVCodecContext *avctx, void *data,
 
         ff_mpeg_er_frame_start(s);
 
-        v->bits = buf_size * 8;
+        v->bits = FFMIN(buf_size * 8, s->gb.size_in_bits);
         v->end_mb_x = s->mb_width;
         if (v->field_mode) {
             s->current_picture.f->linesize[0] <<= 1;
@@ -1035,8 +1089,10 @@ static int vc1_decode_frame(AVCodecContext *avctx, void *data,
                 continue;
             }
             ff_vc1_decode_blocks(v);
-            if (i != n_slices)
+            if (i != n_slices) {
                 s->gb = slices[i].gb;
+                v->bits = FFMIN(buf_size * 8, s->gb.size_in_bits);
+            }
         }
         if (v->field_mode) {
             v->second_field = 0;
@@ -1113,6 +1169,7 @@ static const enum AVPixelFormat vc1_hwaccel_pixfmt_list_420[] = {
 #endif
 #if CONFIG_VC1_D3D11VA_HWACCEL
     AV_PIX_FMT_D3D11VA_VLD,
+    AV_PIX_FMT_D3D11,
 #endif
 #if CONFIG_VC1_VAAPI_HWACCEL
     AV_PIX_FMT_VAAPI,

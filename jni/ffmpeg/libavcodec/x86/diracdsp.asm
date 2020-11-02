@@ -30,7 +30,7 @@ cextern pw_16
 cextern pw_32
 cextern pb_80
 
-section .text
+SECTION .text
 
 %macro UNPACK_ADD 6
     mov%5   %1, %3
@@ -274,7 +274,7 @@ cglobal dequant_subband_32, 7, 7, 4, src, dst, stride, qf, qs, tot_v, tot_h
     movd   m3, qsd
     SPLATD m2
     SPLATD m3
-    mov    r4, tot_hq
+    mov    r4d, tot_hd
     mov    r3, dstq
 
     .loop_v:
@@ -294,8 +294,9 @@ cglobal dequant_subband_32, 7, 7, 4, src, dst, stride, qf, qs, tot_v, tot_h
 
     add    srcq, mmsize
     add    dstq, mmsize
-    sub    tot_hd, 4
+    sub    tot_hq, 4
     jg     .loop_h
+    lea    srcq, [srcq + 4*tot_hq]
 
     add    r3, strideq
     dec    tot_vd

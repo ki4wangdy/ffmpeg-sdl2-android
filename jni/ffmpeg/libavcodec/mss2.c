@@ -152,6 +152,7 @@ static void arith2_init(ArithCoder *c, GetByteContext *gB)
     c->low           = 0;
     c->high          = 0xFFFFFF;
     c->value         = bytestream2_get_be24(gB);
+    c->overread      = 0;
     c->gbc.gB        = gB;
     c->get_model_sym = arith2_get_model_sym;
     c->get_number    = arith2_get_number;
@@ -174,7 +175,7 @@ static int decode_pal_v2(MSS12Context *ctx, const uint8_t *buf, int buf_size)
     return 1 + ncol * 3;
 }
 
-static int decode_555(GetByteContext *gB, uint16_t *dst, int stride,
+static int decode_555(GetByteContext *gB, uint16_t *dst, ptrdiff_t stride,
                       int keyframe, int w, int h)
 {
     int last_symbol = 0, repeat = 0, prev_avail = 0;
@@ -237,8 +238,8 @@ static int decode_555(GetByteContext *gB, uint16_t *dst, int stride,
     return 0;
 }
 
-static int decode_rle(GetBitContext *gb, uint8_t *pal_dst, int pal_stride,
-                      uint8_t *rgb_dst, int rgb_stride, uint32_t *pal,
+static int decode_rle(GetBitContext *gb, uint8_t *pal_dst, ptrdiff_t pal_stride,
+                      uint8_t *rgb_dst, ptrdiff_t rgb_stride, uint32_t *pal,
                       int keyframe, int kf_slipt, int slice, int w, int h)
 {
     uint8_t bits[270] = { 0 };

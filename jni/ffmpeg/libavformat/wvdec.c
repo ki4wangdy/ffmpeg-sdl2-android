@@ -40,6 +40,7 @@ enum WV_FLAGS {
     WV_HBAL   = 0x0400,
     WV_MCINIT = 0x0800,
     WV_MCEND  = 0x1000,
+    WV_DSD    = 0x80000000,
 };
 
 static const int wv_rates[16] = {
@@ -97,8 +98,14 @@ static int wv_read_block_header(AVFormatContext *ctx, AVIOContext *pb)
         return ret;
     }
 
+    if (wc->header.flags & WV_DSD) {
+        avpriv_report_missing_feature(ctx, "WV DSD");
+        return AVERROR_PATCHWELCOME;
+    }
+
     if (wc->header.version < 0x402 || wc->header.version > 0x410) {
-        av_log(ctx, AV_LOG_ERROR, "Unsupported version %03X\n", wc->header.version);
+        avpriv_report_missing_feature(ctx, "WV version 0x%03X",
+                                      wc->header.version);
         return AVERROR_PATCHWELCOME;
     }
 
@@ -119,7 +126,7 @@ static int wv_read_block_header(AVFormatContext *ctx, AVIOContext *pb)
     }
     if ((rate == -1 || !chan) && !wc->block_parsed) {
         int64_t block_end = avio_tell(pb) + wc->header.blocksize;
-        if (!pb->seekable) {
+        if (!(pb->seekable & AVIO_SEEKABLE_NORMAL)) {
             av_log(ctx, AV_LOG_ERROR,
                    "Cannot determine additional parameters\n");
             return AVERROR_INVALIDDATA;
@@ -241,7 +248,7 @@ static int wv_read_header(AVFormatContext *s)
     if (wc->header.total_samples != 0xFFFFFFFFu)
         st->duration = wc->header.total_samples;
 
-    if (s->pb->seekable) {
+    if (s->pb->seekable & AVIO_SEEKABLE_NORMAL) {
         int64_t cur = avio_tell(s->pb);
         wc->apetag_start = ff_ape_parse_tag(s);
         if (!av_dict_get(s->metadata, "", NULL, AV_DICT_IGNORE_SUFFIX))

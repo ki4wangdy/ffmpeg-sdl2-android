@@ -60,7 +60,7 @@ static void yuv_a_to_rgba(const uint8_t *ycbcr, const uint8_t *alpha, uint32_t *
         cb = *ycbcr++;
         YUV_TO_RGB1_CCIR(cb, cr);
         YUV_TO_RGB2_CCIR(r, g, b, y);
-        *rgba++ = (*alpha++ << 24) | (r << 16) | (g << 8) | b;
+        *rgba++ = ((unsigned)*alpha++ << 24) | (r << 16) | (g << 8) | b;
     }
 }
 
@@ -82,10 +82,7 @@ static int decode_run_8bit(GetBitContext *gb, int *color)
 {
     int len;
     int has_run = get_bits1(gb);
-    if (get_bits1(gb))
-        *color = get_bits(gb, 8);
-    else
-        *color = get_bits(gb, 2);
+    *color = get_bits(gb, 2 + 6*get_bits1(gb));
     if (has_run) {
         if (get_bits1(gb)) {
             len = get_bits(gb, 7);
@@ -127,6 +124,8 @@ static int decode_rle(uint8_t *bitmap, int linesize, int w, int h,
             len = decode_run_8bit(&gb, &color);
         else
             len = decode_run_2bit(&gb, &color);
+        if (len != INT_MAX && len > w - x)
+            return AVERROR_INVALIDDATA;
         len = FFMIN(len, w - x);
         memset(d + x, color, len);
         x += len;
@@ -189,12 +188,12 @@ static void guess_palette(DVDSubContext* ctx,
                 r = (((subtitle_color >> 16) & 0xff) * level) >> 8;
                 g = (((subtitle_color >> 8) & 0xff) * level) >> 8;
                 b = (((subtitle_color >> 0) & 0xff) * level) >> 8;
-                rgba_palette[i] = b | (g << 8) | (r << 16) | ((alpha[i] * 17) << 24);
+                rgba_palette[i] = b | (g << 8) | (r << 16) | ((alpha[i] * 17U) << 24);
                 color_used[colormap[i]] = (i + 1);
                 j++;
             } else {
                 rgba_palette[i] = (rgba_palette[color_used[colormap[i]] - 1] & 0x00ffffff) |
-                                    ((alpha[i] * 17) << 24);
+                                    ((alpha[i] * 17U) << 24);
             }
         }
     }
@@ -747,7 +746,7 @@ static av_cold int dvdsub_init(AVCodecContext *avctx)
         int i;
         av_log(avctx, AV_LOG_DEBUG, "palette:");
         for(i=0;i<16;i++)
-            av_log(avctx, AV_LOG_DEBUG, " 0x%06x", ctx->palette[i]);
+            av_log(avctx, AV_LOG_DEBUG, " 0x%06"PRIx32, ctx->palette[i]);
         av_log(avctx, AV_LOG_DEBUG, "\n");
     }
 

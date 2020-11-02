@@ -121,20 +121,23 @@ static int h264_find_frame_end(H264ParseContext *p, const uint8_t *buf,
             }
             state = 7;
         } else {
+            unsigned int mb, last_mb = p->parse_last_mb;
+            GetBitContext gb;
             p->parse_history[p->parse_history_count++] = buf[i];
-            if (p->parse_history_count > 5) {
-                unsigned int mb, last_mb = p->parse_last_mb;
-                GetBitContext gb;
 
-                init_get_bits(&gb, p->parse_history, 8*p->parse_history_count);
-                p->parse_history_count = 0;
-                mb= get_ue_golomb_long(&gb);
+            init_get_bits(&gb, p->parse_history, 8*p->parse_history_count);
+            mb= get_ue_golomb_long(&gb);
+            if (get_bits_left(&gb) > 0 || p->parse_history_count > 5) {
                 p->parse_last_mb = mb;
                 if (pc->frame_start_found) {
-                    if (mb <= last_mb)
+                    if (mb <= last_mb) {
+                        i -= p->parse_history_count - 1;
+                        p->parse_history_count = 0;
                         goto found;
+                    }
                 } else
                     pc->frame_start_found = 1;
+                p->parse_history_count = 0;
                 state = 7;
             }
         }
@@ -149,7 +152,7 @@ found:
     pc->frame_start_found = 0;
     if (p->is_avc)
         return next_avc;
-    return i - (state & 5) - 5 * (state > 7);
+    return i - (state & 5);
 }
 
 static int scan_mmco_reset(AVCodecParserContext *s, GetBitContext *gb,
@@ -202,7 +205,7 @@ static int scan_mmco_reset(AVCodecParserContext *s, GetBitContext *gb,
     if ((p->ps.pps->weighted_pred && slice_type_nos == AV_PICTURE_TYPE_P) ||
         (p->ps.pps->weighted_bipred_idc == 1 && slice_type_nos == AV_PICTURE_TYPE_B))
         ff_h264_pred_weight_table(gb, p->ps.sps, ref_count, slice_type_nos,
-                                  &pwt, logctx);
+                                  &pwt, p->picture_structure, logctx);
 
     if (get_bits1(gb)) { // adaptive_ref_pic_marking_mode_flag
         int i;
@@ -471,25 +474,25 @@ static inline int parse_nal_units(AVCodecParserContext *s,
                 }
             }
 
-            if (sps->pic_struct_present_flag) {
+            if (sps->pic_struct_present_flag && p->sei.picture_timing.present) {
                 switch (p->sei.picture_timing.pic_struct) {
-                case SEI_PIC_STRUCT_TOP_FIELD:
-                case SEI_PIC_STRUCT_BOTTOM_FIELD:
+                case H264_SEI_PIC_STRUCT_TOP_FIELD:
+                case H264_SEI_PIC_STRUCT_BOTTOM_FIELD:
                     s->repeat_pict = 0;
                     break;
-                case SEI_PIC_STRUCT_FRAME:
-                case SEI_PIC_STRUCT_TOP_BOTTOM:
-                case SEI_PIC_STRUCT_BOTTOM_TOP:
+                case H264_SEI_PIC_STRUCT_FRAME:
+                case H264_SEI_PIC_STRUCT_TOP_BOTTOM:
+                case H264_SEI_PIC_STRUCT_BOTTOM_TOP:
                     s->repeat_pict = 1;
                     break;
-                case SEI_PIC_STRUCT_TOP_BOTTOM_TOP:
-                case SEI_PIC_STRUCT_BOTTOM_TOP_BOTTOM:
+                case H264_SEI_PIC_STRUCT_TOP_BOTTOM_TOP:
+                case H264_SEI_PIC_STRUCT_BOTTOM_TOP_BOTTOM:
                     s->repeat_pict = 2;
                     break;
-                case SEI_PIC_STRUCT_FRAME_DOUBLING:
+                case H264_SEI_PIC_STRUCT_FRAME_DOUBLING:
                     s->repeat_pict = 3;
                     break;
-                case SEI_PIC_STRUCT_FRAME_TRIPLING:
+                case H264_SEI_PIC_STRUCT_FRAME_TRIPLING:
                     s->repeat_pict = 5;
                     break;
                 default:
@@ -502,14 +505,14 @@ static inline int parse_nal_units(AVCodecParserContext *s,
 
             if (p->picture_structure == PICT_FRAME) {
                 s->picture_structure = AV_PICTURE_STRUCTURE_FRAME;
-                if (sps->pic_struct_present_flag) {
+                if (sps->pic_struct_present_flag && p->sei.picture_timing.present) {
                     switch (p->sei.picture_timing.pic_struct) {
-                    case SEI_PIC_STRUCT_TOP_BOTTOM:
-                    case SEI_PIC_STRUCT_TOP_BOTTOM_TOP:
+                    case H264_SEI_PIC_STRUCT_TOP_BOTTOM:
+                    case H264_SEI_PIC_STRUCT_TOP_BOTTOM_TOP:
                         s->field_order = AV_FIELD_TT;
                         break;
-                    case SEI_PIC_STRUCT_BOTTOM_TOP:
-                    case SEI_PIC_STRUCT_BOTTOM_TOP_BOTTOM:
+                    case H264_SEI_PIC_STRUCT_BOTTOM_TOP:
+                    case H264_SEI_PIC_STRUCT_BOTTOM_TOP_BOTTOM:
                         s->field_order = AV_FIELD_BB;
                         break;
                     default:

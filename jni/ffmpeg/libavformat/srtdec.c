@@ -78,7 +78,7 @@ static int get_event_info(const char *line, struct event_info *ei)
     ei->pts = AV_NOPTS_VALUE;
     ei->pos = -1;
     if (sscanf(line, "%d:%d:%d%*1[,.]%d --> %d:%d:%d%*1[,.]%d"
-               "%*[ ]X1:%u X2:%u Y1:%u Y2:%u",
+               "%*[ ]X1:%"PRId32" X2:%"PRId32" Y1:%"PRId32" Y2:%"PRId32,
                &hh1, &mm1, &ss1, &ms1,
                &hh2, &mm2, &ss2, &ms2,
                &ei->x1, &ei->x2, &ei->y1, &ei->y2) >= 8) {
@@ -207,6 +207,8 @@ static int srt_read_header(AVFormatContext *s)
     ff_subtitles_queue_finalize(s, &srt->q);
 
 end:
+    if (res < 0)
+        ff_subtitles_queue_clean(&srt->q);
     av_bprint_finalize(&buf, NULL);
     return res;
 }

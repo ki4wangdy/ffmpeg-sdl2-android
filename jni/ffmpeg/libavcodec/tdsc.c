@@ -187,7 +187,7 @@ static void tdsc_paint_cursor(AVCodecContext *avctx, uint8_t *dst, int stride)
 static int tdsc_load_cursor(AVCodecContext *avctx)
 {
     TDSCContext *ctx  = avctx->priv_data;
-    int i, j, k, ret, bits, cursor_fmt;
+    int i, j, k, ret, cursor_fmt;
     uint8_t *dst;
 
     ctx->cursor_hot_x = bytestream2_get_le16(&ctx->gbc);
@@ -231,7 +231,7 @@ static int tdsc_load_cursor(AVCodecContext *avctx)
     case CUR_FMT_MONO:
         for (j = 0; j < ctx->cursor_h; j++) {
             for (i = 0; i < ctx->cursor_w; i += 32) {
-                bits = bytestream2_get_be32(&ctx->gbc);
+                uint32_t bits = bytestream2_get_be32(&ctx->gbc);
                 for (k = 0; k < 32; k++) {
                     dst[0] = !!(bits & 0x80000000);
                     dst   += 4;
@@ -244,7 +244,7 @@ static int tdsc_load_cursor(AVCodecContext *avctx)
         dst = ctx->cursor;
         for (j = 0; j < ctx->cursor_h; j++) {
             for (i = 0; i < ctx->cursor_w; i += 32) {
-                bits = bytestream2_get_be32(&ctx->gbc);
+                uint32_t bits = bytestream2_get_be32(&ctx->gbc);
                 for (k = 0; k < 32; k++) {
                     int mask_bit = !!(bits & 0x80000000);
                     switch (dst[0] * 2 + mask_bit) {
@@ -343,7 +343,6 @@ static int tdsc_decode_jpeg_tile(AVCodecContext *avctx, int tile_size,
 {
     TDSCContext *ctx = avctx->priv_data;
     AVPacket jpkt;
-    int got_frame = 0;
     int ret;
 
     /* Prepare a packet and send to the MJPEG decoder */
@@ -351,12 +350,16 @@ static int tdsc_decode_jpeg_tile(AVCodecContext *avctx, int tile_size,
     jpkt.data = ctx->tilebuffer;
     jpkt.size = tile_size;
 
-    ret = avcodec_decode_video2(ctx->jpeg_avctx, ctx->jpgframe,
-                                &got_frame, &jpkt);
-    if (ret < 0 || !got_frame || ctx->jpgframe->format != AV_PIX_FMT_YUVJ420P) {
+    ret = avcodec_send_packet(ctx->jpeg_avctx, &jpkt);
+    if (ret < 0) {
+        av_log(avctx, AV_LOG_ERROR, "Error submitting a packet for decoding\n");
+        return ret;
+    }
+
+    ret = avcodec_receive_frame(ctx->jpeg_avctx, ctx->jpgframe);
+    if (ret < 0 || ctx->jpgframe->format != AV_PIX_FMT_YUVJ420P) {
         av_log(avctx, AV_LOG_ERROR,
-               "JPEG decoding error (%d) for (%d) frame.\n",
-               ret, got_frame);
+               "JPEG decoding error (%d).\n", ret);
 
         /* Normally skip, error if explode */
         if (avctx->err_recognition & AV_EF_EXPLODE)
@@ -609,7 +612,7 @@ static int tdsc_decode_frame(AVCodecContext *avctx, void *data,
     }
     *got_frame = 1;
 
-    return 0;
+    return avpkt->size;
 }
 
 AVCodec ff_tdsc_decoder = {

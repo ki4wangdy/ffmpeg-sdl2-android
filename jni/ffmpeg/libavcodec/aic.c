@@ -208,6 +208,9 @@ static int aic_decode_coeffs(GetBitContext *gb, int16_t *dst,
     int mb, idx;
     unsigned val;
 
+    if (get_bits_left(gb) < 5)
+        return AVERROR_INVALIDDATA;
+
     has_skips  = get_bits1(gb);
     coeff_type = get_bits1(gb);
     coeff_bits = get_bits(gb, 3);
@@ -449,7 +452,7 @@ static av_cold int aic_decode_init(AVCodecContext *avctx)
 
     ctx->num_x_slices = (ctx->mb_width + 15) >> 4;
     ctx->slice_width  = 16;
-    for (i = 1; i < 32; i++) {
+    for (i = 1; i < ctx->mb_width; i++) {
         if (!(ctx->mb_width % i) && (ctx->mb_width / i <= 32)) {
             ctx->slice_width  = ctx->mb_width / i;
             ctx->num_x_slices = i;
@@ -492,4 +495,5 @@ AVCodec ff_aic_decoder = {
     .decode         = aic_decode_frame,
     .capabilities   = AV_CODEC_CAP_DR1 | AV_CODEC_CAP_FRAME_THREADS,
     .init_thread_copy = ONLY_IF_THREADS_ENABLED(aic_decode_init),
+    .caps_internal  = FF_CODEC_CAP_INIT_THREADSAFE,
 };

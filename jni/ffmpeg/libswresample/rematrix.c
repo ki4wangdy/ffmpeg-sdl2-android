@@ -69,8 +69,10 @@ int swr_set_matrix(struct SwrContext *s, const double *matrix, int stride)
         return AVERROR(EINVAL);
     memset(s->matrix, 0, sizeof(s->matrix));
     memset(s->matrix_flt, 0, sizeof(s->matrix_flt));
-    nb_in  = av_get_channel_layout_nb_channels(s->user_in_ch_layout);
-    nb_out = av_get_channel_layout_nb_channels(s->user_out_ch_layout);
+    nb_in = (s->user_in_ch_count > 0) ? s->user_in_ch_count :
+        av_get_channel_layout_nb_channels(s->user_in_ch_layout);
+    nb_out = (s->user_out_ch_count > 0) ? s->user_out_ch_count :
+        av_get_channel_layout_nb_channels(s->user_out_ch_layout);
     for (out = 0; out < nb_out; out++) {
         for (in = 0; in < nb_in; in++)
             s->matrix_flt[out][in] = s->matrix[out][in] = matrix[in];
@@ -371,9 +373,10 @@ av_cold static int auto_matrix(SwrContext *s)
                            s->matrix[1] - s->matrix[0], s->matrix_encoding, s);
 
     if (ret >= 0 && s->int_sample_fmt == AV_SAMPLE_FMT_FLTP) {
-        int i;
-        for (i = 0; i < FF_ARRAY_ELEMS(s->matrix[0])*FF_ARRAY_ELEMS(s->matrix[0]); i++)
-            s->matrix_flt[0][i] = s->matrix[0][i];
+        int i, j;
+        for (i = 0; i < FF_ARRAY_ELEMS(s->matrix[0]); i++)
+            for (j = 0; j < FF_ARRAY_ELEMS(s->matrix[0]); j++)
+                s->matrix_flt[i][j] = s->matrix[i][j];
     }
 
     return ret;
@@ -469,7 +472,7 @@ av_cold int swri_rematrix_init(SwrContext *s){
         s->matrix_ch[i][0]= ch_in;
     }
 
-    if(HAVE_YASM && HAVE_MMX)
+    if(HAVE_X86ASM && HAVE_MMX)
         return swri_rematrix_init_x86(s);
 
     return 0;

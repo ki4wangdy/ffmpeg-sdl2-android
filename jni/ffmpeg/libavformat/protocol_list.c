@@ -1,4 +1,4 @@
-static const URLProtocol *url_protocols[] = {
+static const URLProtocol * const url_protocols[] = {
     &ff_async_protocol,
     &ff_cache_protocol,
     &ff_concat_protocol,
@@ -16,6 +16,7 @@ static const URLProtocol *url_protocols[] = {
     &ff_mmst_protocol,
     &ff_md5_protocol,
     &ff_pipe_protocol,
+    &ff_prompeg_protocol,
     &ff_rtmp_protocol,
     &ff_rtmpt_protocol,
     &ff_rtp_protocol,

@@ -307,8 +307,10 @@ static void get_id3_tag(AVFormatContext *s, int len)
     ID3v2ExtraMeta *id3v2_extra_meta = NULL;
 
     ff_id3v2_read(s, ID3v2_DEFAULT_MAGIC, &id3v2_extra_meta, len);
-    if (id3v2_extra_meta)
+    if (id3v2_extra_meta) {
         ff_id3v2_parse_apic(s, &id3v2_extra_meta);
+        ff_id3v2_parse_chapters(s, &id3v2_extra_meta);
+    }
     ff_id3v2_free_extra_meta(&id3v2_extra_meta);
 }
 
@@ -319,8 +321,7 @@ static void get_tag(AVFormatContext *s, const char *key, int type, int len, int 
     int64_t off = avio_tell(s->pb);
 #define LEN 22
 
-    if ((unsigned)len >= (UINT_MAX - LEN) / 2)
-        return;
+    av_assert0((unsigned)len < (INT_MAX - LEN) / 2);
 
     if (!asf->export_xmp && !strncmp(key, "xmp", 3))
         goto finish;
@@ -710,6 +711,9 @@ static int asf_read_metadata(AVFormatContext *s, int64_t size)
         value_type = avio_rl16(pb); /* value_type */
         value_len  = avio_rl32(pb);
 
+        if (value_len < 0 || value_len > UINT16_MAX)
+            return AVERROR_INVALIDDATA;
+
         name_len_utf8 = 2*name_len_utf16 + 1;
         name          = av_malloc(name_len_utf8);
         if (!name)
@@ -749,12 +753,14 @@ static int asf_read_marker(AVFormatContext *s, int64_t size)
     count = avio_rl32(pb);    // markers count
     avio_rl16(pb);            // reserved 2 bytes
     name_len = avio_rl16(pb); // name length
-    for (i = 0; i < name_len; i++)
-        avio_r8(pb); // skip the name
+    avio_skip(pb, name_len);
 
     for (i = 0; i < count; i++) {
         int64_t pres_time;
         int name_len;
+
+        if (avio_feof(pb))
+            return AVERROR_INVALIDDATA;
 
         avio_rl64(pb);             // offset, 8 bytes
         pres_time = avio_rl64(pb); // presentation time
@@ -853,11 +859,20 @@ static int asf_read_header(AVFormatContext *s)
                         return ret;
                     av_hex_dump_log(s, AV_LOG_DEBUG, pkt.data, pkt.size);
                     av_packet_unref(&pkt);
+
                     len= avio_rl32(pb);
+                    if (len > UINT16_MAX)
+                        return AVERROR_INVALIDDATA;
                     get_tag(s, "ASF_Protection_Type", -1, len, 32);
+
                     len= avio_rl32(pb);
+                    if (len > UINT16_MAX)
+                        return AVERROR_INVALIDDATA;
                     get_tag(s, "ASF_Key_ID", -1, len, 32);
+
                     len= avio_rl32(pb);
+                    if (len > UINT16_MAX)
+                        return AVERROR_INVALIDDATA;
                     get_tag(s, "ASF_License_URL", -1, len, 32);
                 } else if (!ff_guidcmp(&g, &ff_asf_ext_content_encryption)) {
                     av_log(s, AV_LOG_WARNING,
@@ -1010,7 +1025,7 @@ static int asf_get_packet(AVFormatContext *s, AVIOContext *pb)
             }
 
             if (c != 0x82)
-                avpriv_request_sample(s, "Invalid ECC byte\n");
+                avpriv_request_sample(s, "Invalid ECC byte");
 
             if (!asf->uses_std_ecc)
                 asf->uses_std_ecc =  (c == 0x82 && !d && !e) ? 1 : -1;
@@ -1607,6 +1622,11 @@ static int asf_build_simple_index(AVFormatContext *s, int stream_index)
             int pktct         = avio_rl16(s->pb);
             int64_t pos       = s->internal->data_offset + s->packet_size * (int64_t)pktnum;
             int64_t index_pts = FFMAX(av_rescale(itime, i, 10000) - asf->hdr.preroll, 0);
+
+            if (avio_feof(s->pb)) {
+                ret = AVERROR_INVALIDDATA;
+                goto end;
+            }
 
             if (pos != last_pos) {
                 av_log(s, AV_LOG_DEBUG, "pktnum:%d, pktct:%d  pts: %"PRId64"\n",

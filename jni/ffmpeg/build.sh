@@ -1,6 +1,7 @@
 
 
-export NDK=/ndk/android-ndk-r10e
+#export NDK=/ndk/android-ndk-r10e
+export NDK=/Users/wangdy/work/ndk/android-ndk-r10e
 export PREBUILT=$NDK/toolchains/arm-linux-androideabi-4.8/prebuilt
 export PLATFORM=$NDK/platforms/android-8/arch-arm
 export PREFIX=./ffmpeg_android
@@ -12,11 +13,11 @@ export PREFIX=./ffmpeg_android
 	--enable-runtime-cpudetect	\
 	--disable-asm	\
 	--arch=arm	\
-	--cc=$PREBUILT/linux-x86/bin/arm-linux-androideabi-gcc	\
-	--cross-prefix=$PREBUILT/linux-x86/bin/arm-linux-androideabi-	\
+	--cc=$PREBUILT/darwin-x86_64/bin/arm-linux-androideabi-gcc	\
+	--cross-prefix=$PREBUILT/darwin-x86_64/bin/arm-linux-androideabi-	\
 	--disable-stripping	\
-	--nm=$PREBUILT/linux-x86/bin/arm-linux-androideabi-nm	\
-	--sysroot=/ndk/android-ndk-r10e/platforms/android-8/arch-arm	\
+	--nm=$PREBUILT/darwin-x86_64/bin/arm-linux-androideabi-nm	\
+	--sysroot=/Users/wangdy/work/ndk/android-ndk-r10e/platforms/android-8/arch-arm	\
 	--enable-gpl	\
 	--enable-libx264	\
 	--disable-shared	\
@@ -27,7 +28,7 @@ export PREFIX=./ffmpeg_android
 	--disable-ffmpeg	\
 	--disable-ffserver	\
 	--disable-debug 	\
-	--extra-cflags="-I../x264_android/include -fPIC -DANDROID -D__thumb__ -mthumb -Wfatal-errors -Wno-deprecated -mfloat-abi=softfp -marm -march=armv7-a"	\
+	--extra-cflags="-I../x264_android/include -fPIC -DANDROID -D__thumb__ --disable-linux-perf -mthumb -Wfatal-errors -Wno-deprecated -mfloat-abi=softfp -marm -march=armv7-a"	\
 	--extra-ldflags="-L../x264_android/lib"
 
 # if you want to support the x264 , need to add the folloing
@@ -38,7 +39,7 @@ make
 
 make install
 
-export ANDROID_LD=/ndk/android-ndk-r10e/toolchains/arm-linux-androideabi-4.8/prebuilt/linux-x86/bin/arm-linux-androideabi-ld
+export ANDROID_LD=/Users/wangdy/work/ndk/android-ndk-r10e/toolchains/arm-linux-androideabi-4.8/prebuilt/darwin-x86_64/bin/arm-linux-androideabi-ld
 
 $ANDROID_LD	\
 	-rpath-link=$PLATFORM/usr/lib	\
@@ -50,7 +51,7 @@ $ANDROID_LD	\
 	../x264_android/lib/*.a	\
 	-lc -lm -lz -ldl -llog	\
 	--dynamic-linker=/system/bin/linker	\
-	$PREBUILT/linux-x86/lib/gcc/arm-linux-androideabi/4.8/libgcc.a
+	$PREBUILT/darwin-x86_64/lib/gcc/arm-linux-androideabi/4.8/libgcc.a
 
 	
 

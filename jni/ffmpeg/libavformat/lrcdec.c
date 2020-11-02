@@ -202,6 +202,7 @@ static int lrc_read_header(AVFormatContext *s)
                 sub = ff_subtitles_queue_insert(&lrc->q, line.str + ts_strlength,
                                                 line.len - ts_strlength, 0);
                 if(!sub) {
+                    ff_subtitles_queue_clean(&lrc->q);
                     return AVERROR(ENOMEM);
                 }
                 sub->pos = pos;
@@ -212,6 +213,7 @@ static int lrc_read_header(AVFormatContext *s)
     }
     ff_subtitles_queue_finalize(s, &lrc->q);
     ff_metadata_conv_ctx(s, NULL, ff_lrc_metadata_conv);
+    av_bprint_finalize(&line, NULL);
     return 0;
 }
 

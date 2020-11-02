@@ -109,8 +109,8 @@ av_cold void ff_atrac3p_init_vlcs(void)
         NULL, NULL, atrac3p_ct_huff_xlat1, NULL
     };
 
-    static const  int sf_nb_bits[8]  = {  9,  9,  9,  9,  6,  6,  7,  7 };
-    static const  int sf_nb_codes[8] = { 64, 64, 64, 64, 16, 16, 16, 16 };
+    static const int sf_nb_bits[8]  = {  9,  9,  9,  9,  6,  6,  7,  7 };
+    static const int sf_nb_codes[8] = { 64, 64, 64, 64, 16, 16, 16, 16 };
     static const uint8_t  * const sf_bits[8]  = {
         atrac3p_sf_huff_bits1, atrac3p_sf_huff_bits1, atrac3p_sf_huff_bits2,
         atrac3p_sf_huff_bits3, atrac3p_sf_huff_bits4, atrac3p_sf_huff_bits4,
@@ -456,6 +456,10 @@ static int decode_channel_wordlen(GetBitContext *gb, Atrac3pChanUnitCtx *ctx,
     } else if (chan->fill_mode == 3) {
         pos = ch_num ? chan->num_coded_vals + chan->split_point
                      : ctx->num_quant_units - chan->split_point;
+        if (pos > FF_ARRAY_ELEMS(chan->qu_wordlen)) {
+            av_log(avctx, AV_LOG_ERROR, "Split point beyond array\n");
+            pos = FF_ARRAY_ELEMS(chan->qu_wordlen);
+        }
         for (i = chan->num_coded_vals; i < pos; i++)
             chan->qu_wordlen[i] = 1;
     }
