@@ -53,7 +53,6 @@
 #include "libavutil/cpu.h"
 #include "libavutil/ffversion.h"
 #include "libavutil/version.h"
-#include "libavcodec/avcodec.h"
 #include "cmdutils.h"
 #if CONFIG_NETWORK
 #include "libavformat/network.h"
@@ -75,6 +74,12 @@ AVDictionary *format_opts, *codec_opts, *resample_opts;
 static FILE *report_file;
 static int report_file_level = AV_LOG_DEBUG;
 int hide_banner = 0;
+
+enum show_muxdemuxers {
+    SHOW_DEFAULT,
+    SHOW_DEMUXERS,
+    SHOW_MUXERS,
+};
 
 void init_opts(void)
 {
@@ -226,7 +231,6 @@ static const OptionDef *find_option(const OptionDef *po, const char *name)
  * by default. HAVE_COMMANDLINETOARGVW is true on cygwin, while
  * it doesn't provide the actual command line via GetCommandLineW(). */
 #if HAVE_COMMANDLINETOARGVW && defined(_WIN32)
-#include <windows.h>
 #include <shellapi.h>
 /* Will be leaked on exit */
 static char** win32_argv_utf8 = NULL;
@@ -1112,8 +1116,7 @@ static void print_program_info(int flags, int level)
         av_log(NULL, level, " Copyright (c) %d-%d the FFmpeg developers",
                program_birth_year, CONFIG_THIS_YEAR);
     av_log(NULL, level, "\n");
-    av_log(NULL, level, "%sbuilt on %s %s with %s\n",
-           indent, __DATE__, __TIME__, CC_IDENT);
+    av_log(NULL, level, "%sbuilt with %s\n", indent, CC_IDENT);
 
     av_log(NULL, level, "%sconfiguration: " FFMPEG_CONFIGURATION "\n", indent);
 }
@@ -1253,7 +1256,7 @@ static int is_device(const AVClass *avclass)
     return AV_IS_INPUT_DEVICE(avclass->category) || AV_IS_OUTPUT_DEVICE(avclass->category);
 }
 
-static int show_formats_devices(void *optctx, const char *opt, const char *arg, int device_only)
+static int show_formats_devices(void *optctx, const char *opt, const char *arg, int device_only, int muxdemuxers)
 {
     AVInputFormat *ifmt  = NULL;
     AVOutputFormat *ofmt = NULL;
@@ -1271,29 +1274,33 @@ static int show_formats_devices(void *optctx, const char *opt, const char *arg, 
         const char *name      = NULL;
         const char *long_name = NULL;
 
-        while ((ofmt = av_oformat_next(ofmt))) {
-            is_dev = is_device(ofmt->priv_class);
-            if (!is_dev && device_only)
-                continue;
-            if ((!name || strcmp(ofmt->name, name) < 0) &&
-                strcmp(ofmt->name, last_name) > 0) {
-                name      = ofmt->name;
-                long_name = ofmt->long_name;
-                encode    = 1;
+        if (muxdemuxers !=SHOW_DEMUXERS) {
+            while ((ofmt = av_oformat_next(ofmt))) {
+                is_dev = is_device(ofmt->priv_class);
+                if (!is_dev && device_only)
+                    continue;
+                if ((!name || strcmp(ofmt->name, name) < 0) &&
+                    strcmp(ofmt->name, last_name) > 0) {
+                    name      = ofmt->name;
+                    long_name = ofmt->long_name;
+                    encode    = 1;
+                }
             }
         }
-        while ((ifmt = av_iformat_next(ifmt))) {
-            is_dev = is_device(ifmt->priv_class);
-            if (!is_dev && device_only)
-                continue;
-            if ((!name || strcmp(ifmt->name, name) < 0) &&
-                strcmp(ifmt->name, last_name) > 0) {
-                name      = ifmt->name;
-                long_name = ifmt->long_name;
-                encode    = 0;
+        if (muxdemuxers != SHOW_MUXERS) {
+            while ((ifmt = av_iformat_next(ifmt))) {
+                is_dev = is_device(ifmt->priv_class);
+                if (!is_dev && device_only)
+                    continue;
+                if ((!name || strcmp(ifmt->name, name) < 0) &&
+                    strcmp(ifmt->name, last_name) > 0) {
+                    name      = ifmt->name;
+                    long_name = ifmt->long_name;
+                    encode    = 0;
+                }
+                if (name && strcmp(ifmt->name, name) == 0)
+                    decode = 1;
             }
-            if (name && strcmp(ifmt->name, name) == 0)
-                decode = 1;
         }
         if (!name)
             break;
@@ -1310,12 +1317,22 @@ static int show_formats_devices(void *optctx, const char *opt, const char *arg, 
 
 int show_formats(void *optctx, const char *opt, const char *arg)
 {
-    return show_formats_devices(optctx, opt, arg, 0);
+    return show_formats_devices(optctx, opt, arg, 0, SHOW_DEFAULT);
+}
+
+int show_muxers(void *optctx, const char *opt, const char *arg)
+{
+    return show_formats_devices(optctx, opt, arg, 0, SHOW_MUXERS);
+}
+
+int show_demuxers(void *optctx, const char *opt, const char *arg)
+{
+    return show_formats_devices(optctx, opt, arg, 0, SHOW_DEMUXERS);
 }
 
 int show_devices(void *optctx, const char *opt, const char *arg)
 {
-    return show_formats_devices(optctx, opt, arg, 1);
+    return show_formats_devices(optctx, opt, arg, 1, SHOW_DEFAULT);
 }
 
 #define PRINT_CODEC_SUPPORTED(codec, field, type, list_name, term, get_name) \
@@ -1924,50 +1941,6 @@ int read_yesno(void)
     return yesno;
 }
 
-int cmdutils_read_file(const char *filename, char **bufptr, size_t *size)
-{
-    int ret;
-    FILE *f = av_fopen_utf8(filename, "rb");
-
-    if (!f) {
-        ret = AVERROR(errno);
-        av_log(NULL, AV_LOG_ERROR, "Cannot read file '%s': %s\n", filename,
-               strerror(errno));
-        return ret;
-    }
-    fseek(f, 0, SEEK_END);
-    *size = ftell(f);
-    fseek(f, 0, SEEK_SET);
-    if (*size == (size_t)-1) {
-        ret = AVERROR(errno);
-        av_log(NULL, AV_LOG_ERROR, "IO error: %s\n", strerror(errno));
-        fclose(f);
-        return ret;
-    }
-    *bufptr = av_malloc(*size + 1);
-    if (!*bufptr) {
-        av_log(NULL, AV_LOG_ERROR, "Could not allocate file buffer\n");
-        fclose(f);
-        return AVERROR(ENOMEM);
-    }
-    ret = fread(*bufptr, 1, *size, f);
-    if (ret < *size) {
-        av_free(*bufptr);
-        if (ferror(f)) {
-            ret = AVERROR(errno);
-            av_log(NULL, AV_LOG_ERROR, "Error while reading file '%s': %s\n",
-                   filename, strerror(errno));
-        } else
-            ret = AVERROR_EOF;
-    } else {
-        ret = 0;
-        (*bufptr)[(*size)++] = '\0';
-    }
-
-    fclose(f);
-    return ret;
-}
-
 FILE *get_preset_file(char *filename, size_t filename_size,
                       const char *preset_name, int is_path,
                       const char *codec_name)
@@ -2124,18 +2097,10 @@ void *grow_array(void *array, int elem_size, int *size, int new_size)
 
 double get_rotation(AVStream *st)
 {
-    AVDictionaryEntry *rotate_tag = av_dict_get(st->metadata, "rotate", NULL, 0);
     uint8_t* displaymatrix = av_stream_get_side_data(st,
                                                      AV_PKT_DATA_DISPLAYMATRIX, NULL);
     double theta = 0;
-
-    if (rotate_tag && *rotate_tag->value && strcmp(rotate_tag->value, "0")) {
-        char *tail;
-        theta = av_strtod(rotate_tag->value, &tail);
-        if (*tail)
-            theta = 0;
-    }
-    if (displaymatrix && !theta)
+    if (displaymatrix)
         theta = -av_display_rotation_get((int32_t*) displaymatrix);
 
     theta -= 360*floor(theta/360 + 0.9/360);
@@ -2158,7 +2123,7 @@ static int print_device_sources(AVInputFormat *fmt, AVDictionary *opts)
     if (!fmt || !fmt->priv_class  || !AV_IS_INPUT_DEVICE(fmt->priv_class->category))
         return AVERROR(EINVAL);
 
-    printf("Audo-detected sources for %s:\n", fmt->name);
+    printf("Auto-detected sources for %s:\n", fmt->name);
     if (!fmt->get_device_list) {
         ret = AVERROR(ENOSYS);
         printf("Cannot list sources. Not implemented.\n");
@@ -2188,7 +2153,7 @@ static int print_device_sinks(AVOutputFormat *fmt, AVDictionary *opts)
     if (!fmt || !fmt->priv_class  || !AV_IS_OUTPUT_DEVICE(fmt->priv_class->category))
         return AVERROR(EINVAL);
 
-    printf("Audo-detected sinks for %s:\n", fmt->name);
+    printf("Auto-detected sinks for %s:\n", fmt->name);
     if (!fmt->get_device_list) {
         ret = AVERROR(ENOSYS);
         printf("Cannot list sinks. Not implemented.\n");
