@@ -12,6 +12,7 @@ export PREBUILT=$NDK/toolchains/arm-linux-androideabi-4.9/prebuilt/darwin-x86_64
 	--disable-asm	\
 	--arch=arm	\
 	--cpu=cortex-a8	\
+	--disable-linux-perf	\
 	--cc=$PREBUILT/bin/arm-linux-androideabi-gcc	\
  	--cross-prefix=$PREBUILT/bin/arm-linux-androideabi- \
 	--nm=$PREBUILT/bin/arm-linux-androideabi-nm	\
@@ -28,7 +29,7 @@ export PREBUILT=$NDK/toolchains/arm-linux-androideabi-4.9/prebuilt/darwin-x86_64
 	--disable-ffmpeg	\
 	--disable-ffserver	\
 	--disable-debug 	\
-	--extra-cflags="-I../x264_android/android/arm/include -O3 -pie -fPIE -fpic -fasm -Wno-psabi -fno-short-enums -fno-strict-aliasing -finline-limit=300 -mfloat-abi=softfp -mfpu=vfp -marm -march=armv7-a -mcpu=cortex-a8 -mfpu=vfpv3-d16 -mfloat-abi=softfp -mthumb --disable-linux-perf"	\
+	--extra-cflags="-I../x264_android/android/arm/include -O3 -pie -fPIE -fpic -fasm -Wno-psabi -fno-short-enums -fno-strict-aliasing -finline-limit=300 -mfloat-abi=softfp -mfpu=vfp -marm -march=armv7-a -mcpu=cortex-a8 -mfpu=vfpv3-d16 -mfloat-abi=softfp -mthumb"	\
 	--extra-ldflags="-L../x264_android/android/arm/lib"
 
 make clean

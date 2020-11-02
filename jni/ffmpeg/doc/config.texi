@@ -549,7 +549,7 @@
 @set config-rdft yes
 @c @set config-autodetect no
 @c @set config-fontconfig no
-@set config-linux-perf yes
+@c @set config-linux-perf no
 @c @set config-memory-poisoning no
 @c @set config-neon-clobber-test no
 @c @set config-ossfuzz no
