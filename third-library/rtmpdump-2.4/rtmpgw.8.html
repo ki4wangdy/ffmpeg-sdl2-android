@@ -1,25 +1,25 @@
 <HTML>
 <HEAD>
-<title>RTMPDUMP(1): </title></head>
+<title>RTMPGW(8): </title></head>
 <table>
 <thead>
-<tr><td>RTMPDUMP(1)<td align="center"><td align="right">RTMPDUMP(1)
+<tr><td>RTMPGW(8)<td align="center"><td align="right">RTMPGW(8)
 </thead>
 <tfoot>
-<tr><td>RTMPDump v2.2e<td align="center">2010-05-02<td align="right">RTMPDUMP(1)
+<tr><td>RTMPDump v2.4<td align="center">2011-07-20<td align="right">RTMPGW(8)
 </tfoot>
 <tbody><tr><td colspan="3"><br><br><ul>
-<!-- Copyright 2010 Howard Chu.
+<!-- Copyright 2011 Howard Chu.
  Copying permitted according to the GNU General Public License V2.-->
 </ul>
 
 <h3>NAME</h3><ul>
-rtmpdump &minus; RTMP streaming media client
+rtmpgw &minus; RTMP streaming media gateway
 </ul>
 
 <h3>SYNOPSIS</h3><ul>
-<b>rtmpdump</b>
-<b>&minus;r</b><i>&nbsp;url</i>
+<b>rtmpgw</b>
+[<b>&minus;r</b><i>&nbsp;url</i>]
 [<b>&minus;n</b><i>&nbsp;hostname</i>]
 [<b>&minus;c</b><i>&nbsp;port</i>]
 [<b>&minus;l</b><i>&nbsp;protocol</i>]
@@ -32,7 +32,6 @@ rtmpdump &minus; RTMP streaming media client
 [<b>&minus;u</b><i>&nbsp;auth</i>]
 [<b>&minus;C</b><i>&nbsp;conndata</i>]
 [<b>&minus;y</b><i>&nbsp;playpath</i>]
-[<b>&minus;Y</b>]
 [<b>&minus;v</b>]
 [<b>&minus;d</b><i>&nbsp;subscription</i>]
 [<b>&minus;e</b>]
@@ -42,33 +41,31 @@ rtmpdump &minus; RTMP streaming media client
 [<b>&minus;b</b><i>&nbsp;buffer</i>]
 [<b>&minus;m</b><i>&nbsp;timeout</i>]
 [<b>&minus;T</b><i>&nbsp;key</i>]
+[<b>&minus;j</b><i>&nbsp;JSON</i>]
 [<b>&minus;w</b><i>&nbsp;swfHash</i>]
 [<b>&minus;x</b><i>&nbsp;swfSize</i>]
 [<b>&minus;W</b><i>&nbsp;swfUrl</i>]
 [<b>&minus;X</b><i>&nbsp;swfAge</i>]
-[<b>&minus;o</b><i>&nbsp;output</i>]
-[<b>&minus;#</b>]
+[<b>&minus;D</b><i>&nbsp;address</i>]
+[<b>&minus;g</b><i>&nbsp;port</i>]
 [<b>&minus;q</b>]
 [<b>&minus;V</b>]
 [<b>&minus;z</b>]
 <br>
-<b>rtmpdump &minus;h</b>
+<b>rtmpgw &minus;h</b>
 </ul>
 
 <h3>DESCRIPTION</h3><ul>
-<b>rtmpdump</b>
-is a tool for dumping media content streamed over RTMP.
+<b>rtmpgw</b>
+is a server for streaming media content from RTMP out to HTTP.
 <p>
-<b>rtmpdump</b>
-makes a connection to the specified RTMP server and plays the media
-specified by the given
-<i>url</i>.
-The url should be of the form
-<pre>
-  rtmp[t][e]://hostname[:port][/app[/playpath]]
-</pre>
-<p>
-Plain rtmp, as well as tunneled and encrypted sessions are supported.
+<b>rtmpgw</b>
+listens for HTTP requests that specify RTMP stream parameters and
+then returns the RTMP data in the HTTP response. The only valid
+HTTP request is "GET /" but additional options can be provided
+in URL-encoded fashion. Options specified on the command line will
+be used as defaults, which can be overridden by options in the HTTP
+request.
 </ul>
 
 <h3>OPTIONS</h3><ul>
@@ -196,13 +193,6 @@ automatically, so it must be given explicitly using this option.
 </dl>
 <p>
 <dl compact><dt>
-<b>&minus;&minus;playlist &minus;Y</b>
-<dd>
-Issue a set_playlist command before sending the play command. The
-playlist will just contain the current playpath.
-</dl>
-<p>
-<dl compact><dt>
 <b>&minus;&minus;live &minus;v</b>
 <dd>
 Specify that the media is a live stream. No resuming or seeking in
@@ -214,21 +204,6 @@ live streams is possible.
 <dd>
 Name of live stream to subscribe to. Defaults to
 <i>playpath</i>.
-</dl>
-<p>
-<dl compact><dt>
-<b>&minus;&minus;resume &minus;e</b>
-<dd>
-Resume an incomplete RTMP download.
-</dl>
-<p>
-<dl compact><dt>
-<b>&minus;&minus;skip		&minus;k</b>&nbsp;<i>num</i>
-<dd>
-Skip
-<i>num</i>
-keyframes when looking for the last keyframe from which to resume. This
-may be useful if a regular attempt to resume fails. The default is 0.
 </dl>
 <p>
 <dl compact><dt>
@@ -252,7 +227,7 @@ seconds into the stream.
 <dd>
 Set buffer time to
 <i>num</i>
-milliseconds. The default is 36000000.
+milliseconds. The default is 20000.
 </dl>
 <p>
 <dl compact><dt>
@@ -272,6 +247,12 @@ These options handle additional authentication requests from the server.
 <dd>
 Key for SecureToken response, used if the server requires SecureToken
 authentication.
+</dl>
+<p>
+<dl compact><dt>
+<b>&minus;&minus;jtv		&minus;j</b>&nbsp;<i>JSON</i>
+<dd>
+JSON token used by legacy Justin.tv servers. Invokes NetStream.Authenticate.UsherToken
 </dl>
 <p>
 <dl compact><dt>
@@ -330,17 +311,15 @@ retrieved again.
 <h4>Miscellaneous</h4><ul>
 <p>
 <dl compact><dt>
-<b>&minus;&minus;flv		&minus;o</b>&nbsp;<i>output</i>
+<b>&minus;&minus;device		&minus;D</b>&nbsp;<i>address</i>
 <dd>
-Specify the output file name. If the name is &minus; or is omitted, the
-stream is written to stdout.
+Listener IP address. The default is 0.0.0.0, i.e., any IP address.
 </dl>
 <p>
 <dl compact><dt>
-<b>&minus;&minus;hashes &minus;#</b>
+<b>&minus;&minus;sport		&minus;g</b>&nbsp;<i>port</i>
 <dd>
-Display streaming progress with a hash mark for each 1% of progress, instead
-of a byte counter.
+Listener port. The default is 80.
 </dl>
 <p>
 <dl compact><dt>
@@ -368,25 +347,19 @@ Print a summary of command options.
 </dl>
 </ul>
 
-<h3>EXIT STATUS</h3><ul>
+<h3>EXAMPLES</h3><ul>
+The HTTP request
+<pre>
+	GET /?r=rtmp:%2f%2fserver%2fmyapp&y=somefile HTTP/1.0
+</pre>
+is equivalent to the
+<a href="../man1/rtrmpdump.1"><b>rtrmpdump</b></a>(1)
+invocation
+<pre>
+	rtmpdump &minus;r rtmp://server/myapp &minus;y somefile
+</pre>
 <p>
-<dl compact><dt>
-<b>0</b>
-<dd>
-Successful program execution.
-</dl>
-<p>
-<dl compact><dt>
-<b>1</b>
-<dd>
-Unrecoverable error.
-</dl>
-<p>
-<dl compact><dt>
-<b>2</b>
-<dd>
-Incomplete transfer, resuming may get further.
-</dl>
+Note that only the shortform (single letter) options are supported.
 </ul>
 
 <h3>ENVIRONMENT</h3><ul>
@@ -412,7 +385,7 @@ Cache of SWF Verification information
 </ul>
 
 <h3>SEE ALSO</h3><ul>
-<a href="../man8/rtmpgw.8"><b>rtmpgw</b></a>(8)
+<a href="../man1/rtmpdump.1"><b>rtmpdump</b></a>(1)
 </ul>
 
 <h3>AUTHORS</h3><ul>
