@@ -1036,7 +1036,7 @@ RTMP_Connect(RTMP *r, RTMPPacket *cp)
     {
       /* Connect via SOCKS */
       if (!add_addr_info(&service, &r->Link.sockshost, r->Link.socksport))
-	return FALSE;
+	       return FALSE;
     }
   else
     {
