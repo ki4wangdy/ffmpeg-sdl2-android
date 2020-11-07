@@ -159,112 +159,112 @@ OpenResumeFile(const char *flvFile,	// file name [in]
 
       // check we've got a valid FLV file to continue!
       if (fread(hbuf, 1, 13, *file) != 13)
-	{
-	  RTMP_Log(RTMP_LOGERROR, "Couldn't read FLV file header!");
-	  return RD_FAILED;
-	}
+	  {
+		RTMP_Log(RTMP_LOGERROR, "Couldn't read FLV file header!");
+		return RD_FAILED;
+      }
+      
       if (hbuf[0] != 'F' || hbuf[1] != 'L' || hbuf[2] != 'V'
 	  || hbuf[3] != 0x01)
-	{
-	  RTMP_Log(RTMP_LOGERROR, "Invalid FLV file!");
-	  return RD_FAILED;
-	}
+	  {
+		RTMP_Log(RTMP_LOGERROR, "Invalid FLV file!");
+		return RD_FAILED;
+	  }
 
       if ((hbuf[4] & 0x05) == 0)
-	{
-	  RTMP_Log(RTMP_LOGERROR,
-	      "FLV file contains neither video nor audio, aborting!");
-	  return RD_FAILED;
-	}
+	  {
+		RTMP_Log(RTMP_LOGERROR,
+		  "FLV file contains neither video nor audio, aborting!");
+		  return RD_FAILED;
+	  }
 
       uint32_t dataOffset = AMF_DecodeInt32(hbuf + 5);
       fseek(*file, dataOffset, SEEK_SET);
 
       if (fread(hbuf, 1, 4, *file) != 4)
-	{
-	  RTMP_Log(RTMP_LOGERROR, "Invalid FLV file: missing first prevTagSize!");
-	  return RD_FAILED;
-	}
+	  {
+	  	RTMP_Log(RTMP_LOGERROR, "Invalid FLV file: missing first prevTagSize!");
+	  	return RD_FAILED;
+	  }
       prevTagSize = AMF_DecodeInt32(hbuf);
+
       if (prevTagSize != 0)
-	{
-	  RTMP_Log(RTMP_LOGWARNING,
-	      "First prevTagSize is not zero: prevTagSize = 0x%08X",
-	      prevTagSize);
-	}
+	  {
+		RTMP_Log(RTMP_LOGWARNING,"First prevTagSize is not zero: prevTagSize = 0x%08X",prevTagSize);
+	  }
 
       // go through the file to find the meta data!
       off_t pos = dataOffset + 4;
       int bFoundMetaHeader = FALSE;
 
       while (pos < *size - 4 && !bFoundMetaHeader)
-	{
-	  fseeko(*file, pos, SEEK_SET);
-	  if (fread(hbuf, 1, 4, *file) != 4)
-	    break;
-
-	  uint32_t dataSize = AMF_DecodeInt24(hbuf + 1);
-
-	  if (hbuf[0] == 0x12)
-	    {
-	      if (dataSize > bufferSize)
 		{
-                  /* round up to next page boundary */
-                  bufferSize = dataSize + 4095;
-		  bufferSize ^= (bufferSize & 4095);
-		  free(buffer);
-                  buffer = malloc(bufferSize);
-                  if (!buffer)
-		    return RD_FAILED;
-		}
+		  fseeko(*file, pos, SEEK_SET);
+		  if (fread(hbuf, 1, 4, *file) != 4)
+		    break;
 
-	      fseeko(*file, pos + 11, SEEK_SET);
-	      if (fread(buffer, 1, dataSize, *file) != dataSize)
-		break;
+		  uint32_t dataSize = AMF_DecodeInt24(hbuf + 1);
 
-	      AMFObject metaObj;
-	      int nRes = AMF_Decode(&metaObj, buffer, dataSize, FALSE);
-	      if (nRes < 0)
-		{
-		  RTMP_Log(RTMP_LOGERROR, "%s, error decoding meta data packet",
-		      __FUNCTION__);
-		  break;
-		}
-
-	      AVal metastring;
-	      AMFProp_GetString(AMF_GetProp(&metaObj, NULL, 0), &metastring);
-
-	      if (AVMATCH(&metastring, &av_onMetaData))
-		{
-		  AMF_Dump(&metaObj);
-
-		  *nMetaHeaderSize = dataSize;
-		  if (*metaHeader)
-		    free(*metaHeader);
-		  *metaHeader = (char *) malloc(*nMetaHeaderSize);
-		  memcpy(*metaHeader, buffer, *nMetaHeaderSize);
-
-		  // get duration
-		  AMFObjectProperty prop;
-		  if (RTMP_FindFirstMatchingProperty
-		      (&metaObj, &av_duration, &prop))
+		  if (hbuf[0] == 0x12)
 		    {
-		      *duration = AMFProp_GetNumber(&prop);
-		      RTMP_Log(RTMP_LOGDEBUG, "File has duration: %f", *duration);
-		    }
+		      if (dataSize > bufferSize)
+				{
+		                  /* round up to next page boundary */
+		                  bufferSize = dataSize + 4095;
+				  bufferSize ^= (bufferSize & 4095);
+				  free(buffer);
+		                  buffer = malloc(bufferSize);
+		                  if (!buffer)
+				    return RD_FAILED;
+				}
 
-		  bFoundMetaHeader = TRUE;
-		  break;
+		      fseeko(*file, pos + 11, SEEK_SET);
+		      if (fread(buffer, 1, dataSize, *file) != dataSize)
+			break;
+
+		      AMFObject metaObj;
+		      int nRes = AMF_Decode(&metaObj, buffer, dataSize, FALSE);
+		      if (nRes < 0)
+				{
+				  RTMP_Log(RTMP_LOGERROR, "%s, error decoding meta data packet",
+				      __FUNCTION__);
+				  break;
+				}
+
+		      AVal metastring;
+		      AMFProp_GetString(AMF_GetProp(&metaObj, NULL, 0), &metastring);
+
+		      if (AVMATCH(&metastring, &av_onMetaData))
+				{
+				  AMF_Dump(&metaObj);
+
+				  *nMetaHeaderSize = dataSize;
+				  if (*metaHeader)
+				    free(*metaHeader);
+				  *metaHeader = (char *) malloc(*nMetaHeaderSize);
+				  memcpy(*metaHeader, buffer, *nMetaHeaderSize);
+
+				  // get duration
+				  AMFObjectProperty prop;
+				  if (RTMP_FindFirstMatchingProperty
+				      (&metaObj, &av_duration, &prop))
+				    {
+				      *duration = AMFProp_GetNumber(&prop);
+				      RTMP_Log(RTMP_LOGDEBUG, "File has duration: %f", *duration);
+				    }
+
+				  bFoundMetaHeader = TRUE;
+				  break;
+				}
+		      //metaObj.Reset();
+		      //delete obj;
+		    }
+		  pos += (dataSize + 11 + 4);
 		}
-	      //metaObj.Reset();
-	      //delete obj;
-	    }
-	  pos += (dataSize + 11 + 4);
-	}
 
       free(buffer);
       if (!bFoundMetaHeader)
-	RTMP_Log(RTMP_LOGWARNING, "Couldn't locate meta data!");
+		RTMP_Log(RTMP_LOGWARNING, "Couldn't locate meta data!");
     }
 
   return RD_SUCCESS;
@@ -310,44 +310,46 @@ GetLastKeyframe(FILE * file,	// output file [in]
       int xread;
     skipkeyframe:
       if (size - tsize < 13)
-	{
-	  RTMP_Log(RTMP_LOGERROR,
-	      "Unexpected start of file, error in tag sizes, couldn't arrive at prevTagSize=0");
-	  return RD_FAILED;
-	}
+	  {
+	    RTMP_Log(RTMP_LOGERROR, "Unexpected start of file, error in tag sizes, couldn't arrive at prevTagSize=0");
+	  	return RD_FAILED;
+	  }
+      
       fseeko(file, size - tsize - 4, SEEK_SET);
       xread = fread(buffer, 1, 4, file);
+      
       if (xread != 4)
-	{
-	  RTMP_Log(RTMP_LOGERROR, "Couldn't read prevTagSize from file!");
-	  return RD_FAILED;
-	}
+	  {
+	  	RTMP_Log(RTMP_LOGERROR, "Couldn't read prevTagSize from file!");
+	  	return RD_FAILED;
+	  }
 
       prevTagSize = AMF_DecodeInt32(buffer);
       //RTMP_Log(RTMP_LOGDEBUG, "Last packet: prevTagSize: %d", prevTagSize);
 
       if (prevTagSize == 0)
-	{
-	  RTMP_Log(RTMP_LOGERROR, "Couldn't find keyframe to resume from!");
-	  return RD_FAILED;
-	}
+	  {
+	  	RTMP_Log(RTMP_LOGERROR, "Couldn't find keyframe to resume from!");
+	  	return RD_FAILED;
+	  }
 
       if (prevTagSize < 0 || prevTagSize > size - 4 - 13)
-	{
-	  RTMP_Log(RTMP_LOGERROR,
-	      "Last tag size must be greater/equal zero (prevTagSize=%d) and smaller then filesize, corrupt file!",
-	      prevTagSize);
-	  return RD_FAILED;
-	}
+	  {
+		RTMP_Log(RTMP_LOGERROR,
+			"Last tag size must be greater/equal zero (prevTagSize=%d) and smaller then filesize, corrupt file!",
+		    prevTagSize);
+		return RD_FAILED;
+	  }
       tsize += prevTagSize + 4;
 
       // read header
       fseeko(file, size - tsize, SEEK_SET);
       if (fread(buffer, 1, 12, file) != 12)
-	{
-	  RTMP_Log(RTMP_LOGERROR, "Couldn't read header!");
-	  return RD_FAILED;
-	}
+	  {
+		  RTMP_Log(RTMP_LOGERROR, "Couldn't read header!");
+		  return RD_FAILED;
+	  }
+
       //*
 #ifdef _DEBUG
       uint32_t ts = AMF_DecodeInt24(buffer + 4);
@@ -364,14 +366,14 @@ GetLastKeyframe(FILE * file,	// output file [in]
       if (nSkipKeyFrames > 0
 	  && !(!bAudioOnly
 	       && (buffer[0] != 0x09 || (buffer[11] & 0xf0) != 0x10)))
-	{
+	  {
 #ifdef _DEBUG
-	  RTMP_Log(RTMP_LOGDEBUG,
-	      "xxxxxxxxxxxxxxxxxxxxxxxx Well, lets go one more back!");
+	  	RTMP_Log(RTMP_LOGDEBUG,
+	      	"xxxxxxxxxxxxxxxxxxxxxxxx Well, lets go one more back!");
 #endif
-	  nSkipKeyFrames--;
-	  goto skipkeyframe;
-	}
+	  	nSkipKeyFrames--;
+	  	goto skipkeyframe;
+	  }
 
     }
   while ((bAudioOnly && buffer[0] != 0x08) || (!bAudioOnly && (buffer[0] != 0x09 || (buffer[11] & 0xf0) != 0x10)));	// as long as we don't have a keyframe / last audio frame
@@ -1328,14 +1330,16 @@ main(int argc, char **argv)
 
           if (retries)
             {
-	      RTMP_Log(RTMP_LOGERROR, "Failed to resume the stream\n\n");
-	      if (!RTMP_IsTimedout(&rtmp))
-	        nStatus = RD_FAILED;
-	      else
-	        nStatus = RD_INCOMPLETE;
-	      break;
+		      RTMP_Log(RTMP_LOGERROR, "Failed to resume the stream\n\n");
+		      if (!RTMP_IsTimedout(&rtmp))
+		        nStatus = RD_FAILED;
+		      else
+		        nStatus = RD_INCOMPLETE;
+		      break;
             }
-	  		RTMP_Log(RTMP_LOGINFO, "Connection timed out, trying to resume.\n\n");
+	  	  
+	  	  	RTMP_Log(RTMP_LOGINFO, "Connection timed out, trying to resume.\n\n");
+
           /* Did we already try pausing, and it still didn't work? */
           if (rtmp.m_pausing == 3)
             {
@@ -1347,30 +1351,30 @@ main(int argc, char **argv)
                   if (dStopOffset <= dSeek)
                     {
                       RTMP_LogPrintf("Already Completed\n");
-		      nStatus = RD_SUCCESS;
-		      break;
+				      nStatus = RD_SUCCESS;
+				      break;
                     }
                 }
               if (!RTMP_ReconnectStream(&rtmp, dSeek))
                 {
-	          RTMP_Log(RTMP_LOGERROR, "Failed to resume the stream\n\n");
-	          if (!RTMP_IsTimedout(&rtmp))
-		    nStatus = RD_FAILED;
-	          else
-		    nStatus = RD_INCOMPLETE;
-	          break;
+		          RTMP_Log(RTMP_LOGERROR, "Failed to resume the stream\n\n");
+		          if (!RTMP_IsTimedout(&rtmp))
+			    	nStatus = RD_FAILED;
+		          else
+			    	nStatus = RD_INCOMPLETE;
+		          break;
                 }
             }
-	  else if (!RTMP_ToggleStream(&rtmp))
-	    {
-	      RTMP_Log(RTMP_LOGERROR, "Failed to resume the stream\n\n");
-	      if (!RTMP_IsTimedout(&rtmp))
-		nStatus = RD_FAILED;
-	      else
-		nStatus = RD_INCOMPLETE;
-	      break;
-	    }
-	  bResume = TRUE;
+		  else if (!RTMP_ToggleStream(&rtmp))
+		    {
+		      RTMP_Log(RTMP_LOGERROR, "Failed to resume the stream\n\n");
+		      if (!RTMP_IsTimedout(&rtmp))
+				nStatus = RD_FAILED;
+		      else
+				nStatus = RD_INCOMPLETE;
+		      break;
+		    }
+	  	  bResume = TRUE;
 	}
 
       nStatus = Download(&rtmp, file, dSeek, dStopOffset, duration, bResume,

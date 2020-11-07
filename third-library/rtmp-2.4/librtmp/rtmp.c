@@ -410,7 +410,7 @@ SocksSetup(RTMP *r, AVal *sockshost)
       char *hostname = strdup(sockshost->av_val);
 
       if (socksport)
-	hostname[socksport - sockshost->av_val] = '\0';
+	       hostname[socksport - sockshost->av_val] = '\0';
       r->Link.sockshost.av_val = hostname;
       r->Link.sockshost.av_len = strlen(hostname);
 
@@ -527,11 +527,11 @@ RTMP_SetupStream(RTMP *r,
   if (r->Link.port == 0)
     {
       if (protocol & RTMP_FEATURE_SSL)
-	r->Link.port = 443;
+      	 r->Link.port = 443;
       else if (protocol & RTMP_FEATURE_HTTP)
-	r->Link.port = 80;
+	       r->Link.port = 80;
       else
-	r->Link.port = 1935;
+	       r->Link.port = 1935;
     }
 }
 
@@ -1148,11 +1148,12 @@ RTMP_ToggleStream(RTMP *r)
 
       res = RTMP_SendPause(r, TRUE, r->m_pauseStamp);
       if (!res)
-	return res;
+	       return res;
 
       r->m_pausing = 1;
       sleep(1);
     }
+    
   res = RTMP_SendPause(r, FALSE, r->m_pauseStamp);
   r->m_pausing = 3;
   return res;
