@@ -1276,107 +1276,107 @@ main(int argc, char **argv)
 
   while (!RTMP_ctrlC)
     {
-      RTMP_Log(RTMP_LOGDEBUG, "Setting buffer time to: %dms", bufferTime);
-      RTMP_SetBufferMS(&rtmp, bufferTime);
+        RTMP_Log(RTMP_LOGDEBUG, "Setting buffer time to: %dms", bufferTime);
+        RTMP_SetBufferMS(&rtmp, bufferTime);
 
-      if (first)
-	{
-	  first = 0;
-	  RTMP_LogPrintf("Connecting ...\n");
-
-	  if (!RTMP_Connect(&rtmp, NULL))
-	    {
-	      nStatus = RD_NO_CONNECT;
-	      break;
-	    }
-
-	  RTMP_Log(RTMP_LOGINFO, "Connected...");
-
-	  // User defined seek offset
-	  if (dStartOffset > 0)
-	  {
-	      // Don't need the start offset if resuming an existing file
-	      if (bResume)
-		  {
-			RTMP_Log(RTMP_LOGWARNING, "Can't seek a resumed stream, ignoring --start option");
-			dStartOffset = 0;
-	 	  }
-	      else
-		  {
-		  	dSeek = dStartOffset;
-		  }
-	  }
-
-	  // Calculate the length of the stream to still play
-	  if (dStopOffset > 0)
-	  {
-	    // Quit if start seek is past required stop offset
-	    if (dStopOffset <= dSeek)
+        if (first)
 		{
-			RTMP_LogPrintf("Already Completed\n");
-			nStatus = RD_SUCCESS;
-			break;
-		}
-	  }
+		  first = 0;
+		  RTMP_LogPrintf("Connecting ...\n");
 
-	  if (!RTMP_ConnectStream(&rtmp, dSeek))
-	  {
-	    nStatus = RD_FAILED;
-	    break;
-	  }
-	}
-    else
-	{
-	  nInitialFrameSize = 0;
-
-          if (retries)
-            {
-		      RTMP_Log(RTMP_LOGERROR, "Failed to resume the stream\n\n");
-		      if (!RTMP_IsTimedout(&rtmp))
-		        nStatus = RD_FAILED;
-		      else
-		        nStatus = RD_INCOMPLETE;
-		      break;
-            }
-	  	  
-	  	  	RTMP_Log(RTMP_LOGINFO, "Connection timed out, trying to resume.\n\n");
-
-          /* Did we already try pausing, and it still didn't work? */
-          if (rtmp.m_pausing == 3)
-            {
-              /* Only one try at reconnecting... */
-              retries = 1;
-              dSeek = rtmp.m_pauseStamp;
-              if (dStopOffset > 0)
-                {
-                  if (dStopOffset <= dSeek)
-                    {
-                      RTMP_LogPrintf("Already Completed\n");
-				      nStatus = RD_SUCCESS;
-				      break;
-                    }
-                }
-              if (!RTMP_ReconnectStream(&rtmp, dSeek))
-                {
-		          RTMP_Log(RTMP_LOGERROR, "Failed to resume the stream\n\n");
-		          if (!RTMP_IsTimedout(&rtmp))
-			    	nStatus = RD_FAILED;
-		          else
-			    	nStatus = RD_INCOMPLETE;
-		          break;
-                }
-            }
-		  else if (!RTMP_ToggleStream(&rtmp))
+		  if (!RTMP_Connect(&rtmp, NULL))
 		    {
-		      RTMP_Log(RTMP_LOGERROR, "Failed to resume the stream\n\n");
-		      if (!RTMP_IsTimedout(&rtmp))
-				nStatus = RD_FAILED;
-		      else
-				nStatus = RD_INCOMPLETE;
+		      nStatus = RD_NO_CONNECT;
 		      break;
 		    }
-	  	  bResume = TRUE;
-	}
+
+		  RTMP_Log(RTMP_LOGINFO, "Connected...");
+
+		  // User defined seek offset
+		  if (dStartOffset > 0)
+		  {
+		      // Don't need the start offset if resuming an existing file
+		      if (bResume)
+			  {
+				RTMP_Log(RTMP_LOGWARNING, "Can't seek a resumed stream, ignoring --start option");
+				dStartOffset = 0;
+		 	  }
+		      else
+			  {
+			  	dSeek = dStartOffset;
+			  }
+		  }
+
+		  // Calculate the length of the stream to still play
+		  if (dStopOffset > 0)
+		  {
+		    // Quit if start seek is past required stop offset
+		    if (dStopOffset <= dSeek)
+			{
+				RTMP_LogPrintf("Already Completed\n");
+				nStatus = RD_SUCCESS;
+				break;
+			}
+		  }
+
+		  if (!RTMP_ConnectStream(&rtmp, dSeek))
+		  {
+		    nStatus = RD_FAILED;
+		    break;
+		  }
+		}
+    	else
+		{
+		  	nInitialFrameSize = 0;
+
+	          if (retries)
+	            {
+			      RTMP_Log(RTMP_LOGERROR, "Failed to resume the stream\n\n");
+			      if (!RTMP_IsTimedout(&rtmp))
+			        nStatus = RD_FAILED;
+			      else
+			        nStatus = RD_INCOMPLETE;
+			      break;
+	            }
+		  	  
+		  	  	RTMP_Log(RTMP_LOGINFO, "Connection timed out, trying to resume.\n\n");
+
+	          /* Did we already try pausing, and it still didn't work? */
+	          if (rtmp.m_pausing == 3)
+	            {
+	              /* Only one try at reconnecting... */
+	              retries = 1;
+	              dSeek = rtmp.m_pauseStamp;
+	              if (dStopOffset > 0)
+	                {
+	                  if (dStopOffset <= dSeek)
+	                    {
+	                      RTMP_LogPrintf("Already Completed\n");
+					      nStatus = RD_SUCCESS;
+					      break;
+	                    }
+	                }
+	              if (!RTMP_ReconnectStream(&rtmp, dSeek))
+	                {
+			          RTMP_Log(RTMP_LOGERROR, "Failed to resume the stream\n\n");
+			          if (!RTMP_IsTimedout(&rtmp))
+				    	nStatus = RD_FAILED;
+			          else
+				    	nStatus = RD_INCOMPLETE;
+			          break;
+	                }
+	            }
+			  else if (!RTMP_ToggleStream(&rtmp))
+			    {
+			      RTMP_Log(RTMP_LOGERROR, "Failed to resume the stream\n\n");
+			      if (!RTMP_IsTimedout(&rtmp))
+					nStatus = RD_FAILED;
+			      else
+					nStatus = RD_INCOMPLETE;
+			      break;
+			    }
+		  	  bResume = TRUE;
+		}
 
       nStatus = Download(&rtmp, file, dSeek, dStopOffset, duration, bResume,
 			 metaHeader, nMetaHeaderSize, initialFrame,
