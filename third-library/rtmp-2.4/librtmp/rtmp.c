@@ -977,11 +977,11 @@ RTMP_Connect1(RTMP *r, RTMPPacket *cp)
       TLS_client(RTMP_TLS_ctx, r->m_sb.sb_ssl);
       TLS_setfd(r->m_sb.sb_ssl, r->m_sb.sb_socket);
       if (TLS_connect(r->m_sb.sb_ssl) < 0)
-	{
-	  RTMP_Log(RTMP_LOGERROR, "%s, TLS_Connect failed", __FUNCTION__);
-	  RTMP_Close(r);
-	  return FALSE;
-	}
+    	{
+    	  RTMP_Log(RTMP_LOGERROR, "%s, TLS_Connect failed", __FUNCTION__);
+    	  RTMP_Close(r);
+    	  return FALSE;
+    	}
 #else
       RTMP_Log(RTMP_LOGERROR, "%s, no SSL/TLS support", __FUNCTION__);
       RTMP_Close(r);
@@ -996,12 +996,12 @@ RTMP_Connect1(RTMP *r, RTMPPacket *cp)
       r->m_clientID.av_len = 0;
       HTTP_Post(r, RTMPT_OPEN, "", 1);
       if (HTTP_read(r, 1) != 0)
-	{
-	  r->m_msgCounter = 0;
-	  RTMP_Log(RTMP_LOGDEBUG, "%s, Could not connect for handshake", __FUNCTION__);
-	  RTMP_Close(r);
-	  return 0;
-	}
+    	{
+    	  r->m_msgCounter = 0;
+    	  RTMP_Log(RTMP_LOGDEBUG, "%s, Could not connect for handshake", __FUNCTION__);
+    	  RTMP_Close(r);
+    	  return 0;
+    	}
       r->m_msgCounter = 0;
     }
   RTMP_Log(RTMP_LOGDEBUG, "%s, ... connected, handshaking", __FUNCTION__);
@@ -1106,21 +1106,21 @@ RTMP_ConnectStream(RTMP *r, int seekTime)
   while (!r->m_bPlaying && RTMP_IsConnected(r) && RTMP_ReadPacket(r, &packet))
     {
       if (RTMPPacket_IsReady(&packet))
-	{
-	  if (!packet.m_nBodySize)
-	    continue;
-	  if ((packet.m_packetType == RTMP_PACKET_TYPE_AUDIO) ||
-	      (packet.m_packetType == RTMP_PACKET_TYPE_VIDEO) ||
-	      (packet.m_packetType == RTMP_PACKET_TYPE_INFO))
-	    {
-	      RTMP_Log(RTMP_LOGWARNING, "Received FLV packet before play()! Ignoring.");
-	      RTMPPacket_Free(&packet);
-	      continue;
-	    }
+    	{
+    	  if (!packet.m_nBodySize)
+    	    continue;
+    	  if ((packet.m_packetType == RTMP_PACKET_TYPE_AUDIO) ||
+    	      (packet.m_packetType == RTMP_PACKET_TYPE_VIDEO) ||
+    	      (packet.m_packetType == RTMP_PACKET_TYPE_INFO))
+    	    {
+    	      RTMP_Log(RTMP_LOGWARNING, "Received FLV packet before play()! Ignoring.");
+    	      RTMPPacket_Free(&packet);
+    	      continue;
+    	    }
 
-	  RTMP_ClientPacket(r, &packet);
-	  RTMPPacket_Free(&packet);
-	}
+    	  RTMP_ClientPacket(r, &packet);
+    	  RTMPPacket_Free(&packet);
+    	}
     }
 
   return r->m_bPlaying;
@@ -1254,9 +1254,9 @@ RTMP_ClientPacket(RTMP *r, RTMPPacket *packet)
       HandleAudio(r, packet);
       bHasMediaPacket = 1;
       if (!r->m_mediaChannel)
-	r->m_mediaChannel = packet->m_nChannel;
+	       r->m_mediaChannel = packet->m_nChannel;
       if (!r->m_pausing)
-	r->m_mediaStamp = packet->m_nTimeStamp;
+	       r->m_mediaStamp = packet->m_nTimeStamp;
       break;
 
     case RTMP_PACKET_TYPE_VIDEO:
@@ -1265,9 +1265,9 @@ RTMP_ClientPacket(RTMP *r, RTMPPacket *packet)
       HandleVideo(r, packet);
       bHasMediaPacket = 1;
       if (!r->m_mediaChannel)
-	r->m_mediaChannel = packet->m_nChannel;
+	       r->m_mediaChannel = packet->m_nChannel;
       if (!r->m_pausing)
-	r->m_mediaStamp = packet->m_nTimeStamp;
+	       r->m_mediaStamp = packet->m_nTimeStamp;
       break;
 
     case RTMP_PACKET_TYPE_FLEX_STREAM_SEND:
@@ -1328,42 +1328,42 @@ RTMP_ClientPacket(RTMP *r, RTMPPacket *packet)
       /*RTMP_LogHex(packet.m_body, packet.m_nBodySize); */
 
       if (HandleInvoke(r, packet->m_body, packet->m_nBodySize) == 1)
-	bHasMediaPacket = 2;
+	       bHasMediaPacket = 2;
       break;
 
     case RTMP_PACKET_TYPE_FLASH_VIDEO:
       {
-	/* go through FLV packets and handle metadata packets */
-	unsigned int pos = 0;
-	uint32_t nTimeStamp = packet->m_nTimeStamp;
+      	/* go through FLV packets and handle metadata packets */
+      	unsigned int pos = 0;
+      	uint32_t nTimeStamp = packet->m_nTimeStamp;
 
-	while (pos + 11 < packet->m_nBodySize)
-	  {
-	    uint32_t dataSize = AMF_DecodeInt24(packet->m_body + pos + 1);	/* size without header (11) and prevTagSize (4) */
+      	while (pos + 11 < packet->m_nBodySize)
+      	  {
+      	    uint32_t dataSize = AMF_DecodeInt24(packet->m_body + pos + 1);	/* size without header (11) and prevTagSize (4) */
 
-	    if (pos + 11 + dataSize + 4 > packet->m_nBodySize)
-	      {
-		RTMP_Log(RTMP_LOGWARNING, "Stream corrupt?!");
-		break;
-	      }
-	    if (packet->m_body[pos] == 0x12)
-	      {
-		HandleMetadata(r, packet->m_body + pos + 11, dataSize);
-	      }
-	    else if (packet->m_body[pos] == 8 || packet->m_body[pos] == 9)
-	      {
-		nTimeStamp = AMF_DecodeInt24(packet->m_body + pos + 4);
-		nTimeStamp |= (packet->m_body[pos + 7] << 24);
-	      }
-	    pos += (11 + dataSize + 4);
-	  }
-	if (!r->m_pausing)
-	  r->m_mediaStamp = nTimeStamp;
+      	    if (pos + 11 + dataSize + 4 > packet->m_nBodySize)
+      	      {
+      		RTMP_Log(RTMP_LOGWARNING, "Stream corrupt?!");
+      		break;
+      	      }
+      	    if (packet->m_body[pos] == 0x12)
+      	      {
+      		HandleMetadata(r, packet->m_body + pos + 11, dataSize);
+      	      }
+      	    else if (packet->m_body[pos] == 8 || packet->m_body[pos] == 9)
+      	      {
+      		nTimeStamp = AMF_DecodeInt24(packet->m_body + pos + 4);
+      		nTimeStamp |= (packet->m_body[pos + 7] << 24);
+      	      }
+      	    pos += (11 + dataSize + 4);
+      	  }
+      	if (!r->m_pausing)
+      	  r->m_mediaStamp = nTimeStamp;
 
-	/* FLV tag(s) */
-	/*RTMP_Log(RTMP_LOGDEBUG, "%s, received: FLV tag(s) %lu bytes", __FUNCTION__, packet.m_nBodySize); */
-	bHasMediaPacket = 1;
-	break;
+      	/* FLV tag(s) */
+      	/*RTMP_Log(RTMP_LOGDEBUG, "%s, received: FLV tag(s) %lu bytes", __FUNCTION__, packet.m_nBodySize); */
+      	bHasMediaPacket = 1;
+      	break;
       }
     default:
       RTMP_Log(RTMP_LOGDEBUG, "%s, unknown packet type received: 0x%02x", __FUNCTION__,
@@ -2937,77 +2937,77 @@ HandleInvoke(RTMP *r, const char *body, unsigned int nBodySize)
       int i;
 
       for (i=0; i<r->m_numCalls; i++) {
-	if (r->m_methodCalls[i].num == (int)txn) {
-	  methodInvoked = r->m_methodCalls[i].name;
-	  AV_erase(r->m_methodCalls, &r->m_numCalls, i, FALSE);
-	  break;
-	}
+      	if (r->m_methodCalls[i].num == (int)txn) 
+        {
+      	  methodInvoked = r->m_methodCalls[i].name;
+      	  AV_erase(r->m_methodCalls, &r->m_numCalls, i, FALSE);
+      	  break;
+      	}
       }
       if (!methodInvoked.av_val) {
-        RTMP_Log(RTMP_LOGDEBUG, "%s, received result id %f without matching request",
-	  __FUNCTION__, txn);
-	goto leave;
+        RTMP_Log(RTMP_LOGDEBUG, "%s, received result id %f without matching request", __FUNCTION__, txn);
+	       goto leave;
       }
 
-      RTMP_Log(RTMP_LOGDEBUG, "%s, received result for method call <%s>", __FUNCTION__,
-	  methodInvoked.av_val);
+      RTMP_Log(RTMP_LOGDEBUG, "%s, received result for method call <%s>", __FUNCTION__,methodInvoked.av_val);
 
       if (AVMATCH(&methodInvoked, &av_connect))
-	{
-	  if (r->Link.token.av_len)
-	    {
-	      AMFObjectProperty p;
-	      if (RTMP_FindFirstMatchingProperty(&obj, &av_secureToken, &p))
-		{
-		  DecodeTEA(&r->Link.token, &p.p_vu.p_aval);
-		  SendSecureTokenResponse(r, &p.p_vu.p_aval);
-		}
-	    }
-	  if (r->Link.protocol & RTMP_FEATURE_WRITE)
-	    {
-	      SendReleaseStream(r);
-	      SendFCPublish(r);
-	    }
-	  else
-	    {
-	      RTMP_SendServerBW(r);
-	      RTMP_SendCtrl(r, 3, 0, 300);
-	    }
-	  RTMP_SendCreateStream(r);
+    	{
+    	  if (r->Link.token.av_len)
+    	    {
+    	      AMFObjectProperty p;
+    	      if (RTMP_FindFirstMatchingProperty(&obj, &av_secureToken, &p))
+        		{
+        		  DecodeTEA(&r->Link.token, &p.p_vu.p_aval);
+        		  SendSecureTokenResponse(r, &p.p_vu.p_aval);
+        		}
+    	    }
+    	  if (r->Link.protocol & RTMP_FEATURE_WRITE)
+    	    {
+    	      SendReleaseStream(r);
+    	      SendFCPublish(r);
+    	    }
+    	  else
+    	    {
+    	      RTMP_SendServerBW(r);
+    	      RTMP_SendCtrl(r, 3, 0, 300);
+    	    }
+    	  
+        RTMP_SendCreateStream(r);
 
-	  if (!(r->Link.protocol & RTMP_FEATURE_WRITE))
-	    {
-	      /* Authenticate on Justin.tv legacy servers before sending FCSubscribe */
-	      if (r->Link.usherToken.av_len)
-	        SendUsherToken(r, &r->Link.usherToken);
-	      /* Send the FCSubscribe if live stream or if subscribepath is set */
-	      if (r->Link.subscribepath.av_len)
-	        SendFCSubscribe(r, &r->Link.subscribepath);
-	      else if (r->Link.lFlags & RTMP_LF_LIVE)
-	        SendFCSubscribe(r, &r->Link.playpath);
-	    }
-	}
+    	  if (!(r->Link.protocol & RTMP_FEATURE_WRITE))
+    	    {
+    	      /* Authenticate on Justin.tv legacy servers before sending FCSubscribe */
+    	      if (r->Link.usherToken.av_len)
+    	        SendUsherToken(r, &r->Link.usherToken);
+    	      /* Send the FCSubscribe if live stream or if subscribepath is set */
+    	      if (r->Link.subscribepath.av_len)
+    	        SendFCSubscribe(r, &r->Link.subscribepath);
+    	      else if (r->Link.lFlags & RTMP_LF_LIVE)
+    	        SendFCSubscribe(r, &r->Link.playpath);
+    	    }
+    	}
       else if (AVMATCH(&methodInvoked, &av_createStream))
-	{
-	  r->m_stream_id = (int)AMFProp_GetNumber(AMF_GetProp(&obj, NULL, 3));
+    	{
+    	  r->m_stream_id = (int)AMFProp_GetNumber(AMF_GetProp(&obj, NULL, 3));
 
-	  if (r->Link.protocol & RTMP_FEATURE_WRITE)
-	    {
-	      SendPublish(r);
-	    }
-	  else
-	    {
-	      if (r->Link.lFlags & RTMP_LF_PLST)
-	        SendPlaylist(r);
-	      SendPlay(r);
-	      RTMP_SendCtrl(r, 3, r->m_stream_id, r->m_nBufferMS);
-	    }
-	}
+    	  if (r->Link.protocol & RTMP_FEATURE_WRITE)
+    	    {
+    	      SendPublish(r);
+    	    }
+    	  else
+    	    {
+    	      if (r->Link.lFlags & RTMP_LF_PLST)
+    	        SendPlaylist(r);
+    	      SendPlay(r);
+    	      RTMP_SendCtrl(r, 3, r->m_stream_id, r->m_nBufferMS);
+    	    }
+    	}
       else if (AVMATCH(&methodInvoked, &av_play) ||
       	AVMATCH(&methodInvoked, &av_publish))
-	{
-	  r->m_bPlaying = TRUE;
-	}
+    	{
+    	  r->m_bPlaying = TRUE;
+    	}
       free(methodInvoked.av_val);
     }
   else if (AVMATCH(&method, &av_onBWDone))
@@ -3384,100 +3384,100 @@ HandleCtrl(RTMP *r, const RTMPPacket *packet)
   if (packet->m_nBodySize >= 6)
     {
       switch (nType)
-	{
-	case 0:
-	  tmp = AMF_DecodeInt32(packet->m_body + 2);
-	  RTMP_Log(RTMP_LOGDEBUG, "%s, Stream Begin %d", __FUNCTION__, tmp);
-	  break;
+    	{
+    	case 0:
+    	  tmp = AMF_DecodeInt32(packet->m_body + 2);
+    	  RTMP_Log(RTMP_LOGDEBUG, "%s, Stream Begin %d", __FUNCTION__, tmp);
+    	  break;
 
-	case 1:
-	  tmp = AMF_DecodeInt32(packet->m_body + 2);
-	  RTMP_Log(RTMP_LOGDEBUG, "%s, Stream EOF %d", __FUNCTION__, tmp);
-	  if (r->m_pausing == 1)
-	    r->m_pausing = 2;
-	  break;
+    	case 1:
+    	  tmp = AMF_DecodeInt32(packet->m_body + 2);
+    	  RTMP_Log(RTMP_LOGDEBUG, "%s, Stream EOF %d", __FUNCTION__, tmp);
+    	  if (r->m_pausing == 1)
+    	    r->m_pausing = 2;
+    	  break;
 
-	case 2:
-	  tmp = AMF_DecodeInt32(packet->m_body + 2);
-	  RTMP_Log(RTMP_LOGDEBUG, "%s, Stream Dry %d", __FUNCTION__, tmp);
-	  break;
+    	case 2:
+    	  tmp = AMF_DecodeInt32(packet->m_body + 2);
+    	  RTMP_Log(RTMP_LOGDEBUG, "%s, Stream Dry %d", __FUNCTION__, tmp);
+    	  break;
 
-	case 4:
-	  tmp = AMF_DecodeInt32(packet->m_body + 2);
-	  RTMP_Log(RTMP_LOGDEBUG, "%s, Stream IsRecorded %d", __FUNCTION__, tmp);
-	  break;
+    	case 4:
+    	  tmp = AMF_DecodeInt32(packet->m_body + 2);
+    	  RTMP_Log(RTMP_LOGDEBUG, "%s, Stream IsRecorded %d", __FUNCTION__, tmp);
+    	  break;
 
-	case 6:		/* server ping. reply with pong. */
-	  tmp = AMF_DecodeInt32(packet->m_body + 2);
-	  RTMP_Log(RTMP_LOGDEBUG, "%s, Ping %d", __FUNCTION__, tmp);
-	  RTMP_SendCtrl(r, 0x07, tmp, 0);
-	  break;
+    	case 6:		/* server ping. reply with pong. */
+    	  tmp = AMF_DecodeInt32(packet->m_body + 2);
+    	  RTMP_Log(RTMP_LOGDEBUG, "%s, Ping %d", __FUNCTION__, tmp);
+    	  RTMP_SendCtrl(r, 0x07, tmp, 0);
+    	  break;
 
-	/* FMS 3.5 servers send the following two controls to let the client
-	 * know when the server has sent a complete buffer. I.e., when the
-	 * server has sent an amount of data equal to m_nBufferMS in duration.
-	 * The server meters its output so that data arrives at the client
-	 * in realtime and no faster.
-	 *
-	 * The rtmpdump program tries to set m_nBufferMS as large as
-	 * possible, to force the server to send data as fast as possible.
-	 * In practice, the server appears to cap this at about 1 hour's
-	 * worth of data. After the server has sent a complete buffer, and
-	 * sends this BufferEmpty message, it will wait until the play
-	 * duration of that buffer has passed before sending a new buffer.
-	 * The BufferReady message will be sent when the new buffer starts.
-	 * (There is no BufferReady message for the very first buffer;
-	 * presumably the Stream Begin message is sufficient for that
-	 * purpose.)
-	 *
-	 * If the network speed is much faster than the data bitrate, then
-	 * there may be long delays between the end of one buffer and the
-	 * start of the next.
-	 *
-	 * Since usually the network allows data to be sent at
-	 * faster than realtime, and rtmpdump wants to download the data
-	 * as fast as possible, we use this RTMP_LF_BUFX hack: when we
-	 * get the BufferEmpty message, we send a Pause followed by an
-	 * Unpause. This causes the server to send the next buffer immediately
-	 * instead of waiting for the full duration to elapse. (That's
-	 * also the purpose of the ToggleStream function, which rtmpdump
-	 * calls if we get a read timeout.)
-	 *
-	 * Media player apps don't need this hack since they are just
-	 * going to play the data in realtime anyway. It also doesn't work
-	 * for live streams since they obviously can only be sent in
-	 * realtime. And it's all moot if the network speed is actually
-	 * slower than the media bitrate.
-	 */
-	case 31:
-	  tmp = AMF_DecodeInt32(packet->m_body + 2);
-	  RTMP_Log(RTMP_LOGDEBUG, "%s, Stream BufferEmpty %d", __FUNCTION__, tmp);
-	  if (!(r->Link.lFlags & RTMP_LF_BUFX))
-	    break;
-	  if (!r->m_pausing)
-	    {
-	      r->m_pauseStamp = r->m_mediaChannel < r->m_channelsAllocatedIn ?
-	                        r->m_channelTimestamp[r->m_mediaChannel] : 0;
-	      RTMP_SendPause(r, TRUE, r->m_pauseStamp);
-	      r->m_pausing = 1;
-	    }
-	  else if (r->m_pausing == 2)
-	    {
-	      RTMP_SendPause(r, FALSE, r->m_pauseStamp);
-	      r->m_pausing = 3;
-	    }
-	  break;
+    	/* FMS 3.5 servers send the following two controls to let the client
+    	 * know when the server has sent a complete buffer. I.e., when the
+    	 * server has sent an amount of data equal to m_nBufferMS in duration.
+    	 * The server meters its output so that data arrives at the client
+    	 * in realtime and no faster.
+    	 *
+    	 * The rtmpdump program tries to set m_nBufferMS as large as
+    	 * possible, to force the server to send data as fast as possible.
+    	 * In practice, the server appears to cap this at about 1 hour's
+    	 * worth of data. After the server has sent a complete buffer, and
+    	 * sends this BufferEmpty message, it will wait until the play
+    	 * duration of that buffer has passed before sending a new buffer.
+    	 * The BufferReady message will be sent when the new buffer starts.
+    	 * (There is no BufferReady message for the very first buffer;
+    	 * presumably the Stream Begin message is sufficient for that
+    	 * purpose.)
+    	 *
+    	 * If the network speed is much faster than the data bitrate, then
+    	 * there may be long delays between the end of one buffer and the
+    	 * start of the next.
+    	 *
+    	 * Since usually the network allows data to be sent at
+    	 * faster than realtime, and rtmpdump wants to download the data
+    	 * as fast as possible, we use this RTMP_LF_BUFX hack: when we
+    	 * get the BufferEmpty message, we send a Pause followed by an
+    	 * Unpause. This causes the server to send the next buffer immediately
+    	 * instead of waiting for the full duration to elapse. (That's
+    	 * also the purpose of the ToggleStream function, which rtmpdump
+    	 * calls if we get a read timeout.)
+    	 *
+    	 * Media player apps don't need this hack since they are just
+    	 * going to play the data in realtime anyway. It also doesn't work
+    	 * for live streams since they obviously can only be sent in
+    	 * realtime. And it's all moot if the network speed is actually
+    	 * slower than the media bitrate.
+    	 */
+    	case 31:
+    	  tmp = AMF_DecodeInt32(packet->m_body + 2);
+    	  RTMP_Log(RTMP_LOGDEBUG, "%s, Stream BufferEmpty %d", __FUNCTION__, tmp);
+    	  if (!(r->Link.lFlags & RTMP_LF_BUFX))
+    	    break;
+    	  if (!r->m_pausing)
+    	    {
+    	      r->m_pauseStamp = r->m_mediaChannel < r->m_channelsAllocatedIn ?
+    	                        r->m_channelTimestamp[r->m_mediaChannel] : 0;
+    	      RTMP_SendPause(r, TRUE, r->m_pauseStamp);
+    	      r->m_pausing = 1;
+    	    }
+    	  else if (r->m_pausing == 2)
+    	    {
+    	      RTMP_SendPause(r, FALSE, r->m_pauseStamp);
+    	      r->m_pausing = 3;
+    	    }
+    	  break;
 
-	case 32:
-	  tmp = AMF_DecodeInt32(packet->m_body + 2);
-	  RTMP_Log(RTMP_LOGDEBUG, "%s, Stream BufferReady %d", __FUNCTION__, tmp);
-	  break;
+    	case 32:
+    	  tmp = AMF_DecodeInt32(packet->m_body + 2);
+    	  RTMP_Log(RTMP_LOGDEBUG, "%s, Stream BufferReady %d", __FUNCTION__, tmp);
+    	  break;
 
-	default:
-	  tmp = AMF_DecodeInt32(packet->m_body + 2);
-	  RTMP_Log(RTMP_LOGDEBUG, "%s, Stream xx %d", __FUNCTION__, tmp);
-	  break;
-	}
+    	default:
+    	  tmp = AMF_DecodeInt32(packet->m_body + 2);
+    	  RTMP_Log(RTMP_LOGDEBUG, "%s, Stream xx %d", __FUNCTION__, tmp);
+    	  break;
+    	}
 
     }
 
@@ -3576,11 +3576,11 @@ RTMP_ReadPacket(RTMP *r, RTMPPacket *packet)
   if (packet->m_nChannel == 0)
     {
       if (ReadN(r, (char *)&hbuf[1], 1) != 1)
-	{
-	  RTMP_Log(RTMP_LOGERROR, "%s, failed to read RTMP packet header 2nd byte",
-	      __FUNCTION__);
-	  return FALSE;
-	}
+    	{
+    	  RTMP_Log(RTMP_LOGERROR, "%s, failed to read RTMP packet header 2nd byte",
+    	      __FUNCTION__);
+    	  return FALSE;
+    	}
       packet->m_nChannel = hbuf[1];
       packet->m_nChannel += 64;
       header++;
@@ -3589,11 +3589,11 @@ RTMP_ReadPacket(RTMP *r, RTMPPacket *packet)
     {
       int tmp;
       if (ReadN(r, (char *)&hbuf[1], 2) != 2)
-	{
-	  RTMP_Log(RTMP_LOGERROR, "%s, failed to read RTMP packet header 3nd byte",
-	      __FUNCTION__);
-	  return FALSE;
-	}
+    	{
+    	  RTMP_Log(RTMP_LOGERROR, "%s, failed to read RTMP packet header 3nd byte",
+    	      __FUNCTION__);
+    	  return FALSE;
+    	}
       tmp = (hbuf[2] << 8) + hbuf[1];
       packet->m_nChannel = tmp + 64;
       RTMP_Log(RTMP_LOGDEBUG, "%s, m_nChannel: %0x", __FUNCTION__, packet->m_nChannel);
@@ -3628,8 +3628,8 @@ RTMP_ReadPacket(RTMP *r, RTMPPacket *packet)
   else if (nSize < RTMP_LARGE_HEADER_SIZE)
     {				/* using values from the last message of this channel */
       if (r->m_vecChannelsIn[packet->m_nChannel])
-	memcpy(packet, r->m_vecChannelsIn[packet->m_nChannel],
-	       sizeof(RTMPPacket));
+      	memcpy(packet, r->m_vecChannelsIn[packet->m_nChannel],
+      	       sizeof(RTMPPacket));
     }
 
   nSize--;
@@ -3650,41 +3650,41 @@ RTMP_ReadPacket(RTMP *r, RTMPPacket *packet)
       /*RTMP_Log(RTMP_LOGDEBUG, "%s, reading RTMP packet chunk on channel %x, headersz %i, timestamp %i, abs timestamp %i", __FUNCTION__, packet.m_nChannel, nSize, packet.m_nTimeStamp, packet.m_hasAbsTimestamp); */
 
       if (nSize >= 6)
-	{
-	  packet->m_nBodySize = AMF_DecodeInt24(header + 3);
-	  packet->m_nBytesRead = 0;
-	  RTMPPacket_Free(packet);
+    	{
+    	  packet->m_nBodySize = AMF_DecodeInt24(header + 3);
+    	  packet->m_nBytesRead = 0;
+    	  RTMPPacket_Free(packet);
 
-	  if (nSize > 6)
-	    {
-	      packet->m_packetType = header[6];
+    	  if (nSize > 6)
+    	    {
+    	      packet->m_packetType = header[6];
 
-	      if (nSize == 11)
-		packet->m_nInfoField2 = DecodeInt32LE(header + 7);
-	    }
-	}
+    	      if (nSize == 11)
+    		      packet->m_nInfoField2 = DecodeInt32LE(header + 7);
+    	    }
+    	}
       if (packet->m_nTimeStamp == 0xffffff)
-	{
-	  if (ReadN(r, header + nSize, 4) != 4)
-	    {
-	      RTMP_Log(RTMP_LOGERROR, "%s, failed to read extended timestamp",
-		  __FUNCTION__);
-	      return FALSE;
-	    }
-	  packet->m_nTimeStamp = AMF_DecodeInt32(header + nSize);
-	  hSize += 4;
-	}
-    }
+    	{
+    	  if (ReadN(r, header + nSize, 4) != 4)
+    	    {
+    	      RTMP_Log(RTMP_LOGERROR, "%s, failed to read extended timestamp",
+    		  __FUNCTION__);
+    	      return FALSE;
+    	    }
+    	  packet->m_nTimeStamp = AMF_DecodeInt32(header + nSize);
+    	  hSize += 4;
+    	}
+  }
 
   RTMP_LogHexString(RTMP_LOGDEBUG2, (uint8_t *)hbuf, hSize);
 
   if (packet->m_nBodySize > 0 && packet->m_body == NULL)
     {
       if (!RTMPPacket_Alloc(packet, packet->m_nBodySize))
-	{
-	  RTMP_Log(RTMP_LOGDEBUG, "%s, failed to allocate packet", __FUNCTION__);
-	  return FALSE;
-	}
+    	{
+    	  RTMP_Log(RTMP_LOGDEBUG, "%s, failed to allocate packet", __FUNCTION__);
+    	  return FALSE;
+    	}
       didAlloc = TRUE;
       packet->m_headerType = (hbuf[0] & 0xc0) >> 6;
     }
@@ -4026,33 +4026,33 @@ RTMP_SendPacket(RTMP *r, RTMPPacket *packet, int queue)
       int chunks = (nSize+nChunkSize-1) / nChunkSize;
       if (chunks > 1)
         {
-	  tlen = chunks * (cSize + 1) + nSize + hSize;
-	  tbuf = malloc(tlen);
-	  if (!tbuf)
-	    return FALSE;
-	  toff = tbuf;
-	}
+      	  tlen = chunks * (cSize + 1) + nSize + hSize;
+      	  tbuf = malloc(tlen);
+      	  if (!tbuf)
+      	    return FALSE;
+      	  toff = tbuf;
+	      }
     }
   while (nSize + hSize)
     {
       int wrote;
 
       if (nSize < nChunkSize)
-	nChunkSize = nSize;
+	       nChunkSize = nSize;
 
-      RTMP_LogHexString(RTMP_LOGDEBUG2, (uint8_t *)header, hSize);
-      RTMP_LogHexString(RTMP_LOGDEBUG2, (uint8_t *)buffer, nChunkSize);
+         RTMP_LogHexString(RTMP_LOGDEBUG2, (uint8_t *)header, hSize);
+         RTMP_LogHexString(RTMP_LOGDEBUG2, (uint8_t *)buffer, nChunkSize);
       if (tbuf)
         {
-	  memcpy(toff, header, nChunkSize + hSize);
-	  toff += nChunkSize + hSize;
-	}
+      	  memcpy(toff, header, nChunkSize + hSize);
+      	  toff += nChunkSize + hSize;
+	      }
       else
         {
-	  wrote = WriteN(r, header, nChunkSize + hSize);
-	  if (!wrote)
-	    return FALSE;
-	}
+      	  wrote = WriteN(r, header, nChunkSize + hSize);
+      	  if (!wrote)
+      	    return FALSE;
+	      }
       nSize -= nChunkSize;
       buffer += nChunkSize;
       hSize = 0;
