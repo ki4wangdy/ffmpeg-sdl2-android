@@ -470,36 +470,35 @@ Download(RTMP * rtmp,		// connected RTMP object
       // print initial status
       // Workaround to exit with 0 if the file is fully (> 99.9%) downloaded
       if (duration > 0)
-	{
-	  if ((double) rtmp->m_read.timestamp >= (double) duration * 999.0)
-	    {
-	      RTMP_LogPrintf("Already Completed at: %.3f sec Duration=%.3f sec\n",
-			(double) rtmp->m_read.timestamp / 1000.0,
-			(double) duration / 1000.0);
-	      return RD_SUCCESS;
-	    }
-	  else
-	    {
-	      *percent = ((double) rtmp->m_read.timestamp) / (duration * 1000.0) * 100.0;
-	      *percent = ((double) (int) (*percent * 10.0)) / 10.0;
-	      RTMP_LogPrintf("%s download at: %.3f kB / %.3f sec (%.1f%%)\n",
-			bResume ? "Resuming" : "Starting",
-			(double) size / 1024.0, (double) rtmp->m_read.timestamp / 1000.0,
-			*percent);
-	    }
-	}
+	  {
+		  if ((double) rtmp->m_read.timestamp >= (double) duration * 999.0)
+		    {
+		      RTMP_LogPrintf("Already Completed at: %.3f sec Duration=%.3f sec\n",
+				(double) rtmp->m_read.timestamp / 1000.0,
+				(double) duration / 1000.0);
+		      return RD_SUCCESS;
+		    }
+		  else
+		    {
+		      *percent = ((double) rtmp->m_read.timestamp) / (duration * 1000.0) * 100.0;
+		      *percent = ((double) (int) (*percent * 10.0)) / 10.0;
+		      RTMP_LogPrintf("%s download at: %.3f kB / %.3f sec (%.1f%%)\n",
+				bResume ? "Resuming" : "Starting",
+				(double) size / 1024.0, (double) rtmp->m_read.timestamp / 1000.0,
+				*percent);
+		    }
+	  }
       else
-	{
-	  RTMP_LogPrintf("%s download at: %.3f kB\n",
-		    bResume ? "Resuming" : "Starting",
-		    (double) size / 1024.0);
-	}
+	  {
+	  	RTMP_LogPrintf("%s download at: %.3f kB\n",bResume ? "Resuming" : "Starting", (double) size / 1024.0);
+	  }
+      
       if (bRealtimeStream)
-	RTMP_LogPrintf("  in approximately realtime (disabled BUFX speedup hack)\n");
-    }
+		RTMP_LogPrintf("  in approximately realtime (disabled BUFX speedup hack)\n");
+      }
 
-  if (dStopOffset > 0)
-    RTMP_LogPrintf("For duration: %.3f sec\n", (double) (dStopOffset - dSeek) / 1000.0);
+	  if (dStopOffset > 0)
+	    RTMP_LogPrintf("For duration: %.3f sec\n", (double) (dStopOffset - dSeek) / 1000.0);
 
   if (bResume && nInitialFrameSize > 0)
     rtmp->m_read.flags |= RTMP_READ_RESUME;
@@ -535,51 +534,53 @@ Download(RTMP * rtmp,		// connected RTMP object
 
 	  if (duration > 0)
 	    {
-	      // make sure we claim to have enough buffer time!
-	      if (!bOverrideBufferTime && bufferTime < (duration * 1000.0))
-		{
-		  bufferTime = (uint32_t) (duration * 1000.0) + 5000;	// extra 5sec to make sure we've got enough
+	        // make sure we claim to have enough buffer time!
+	        if (!bOverrideBufferTime && bufferTime < (duration * 1000.0))
+			{
+			  bufferTime = (uint32_t) (duration * 1000.0) + 5000;	// extra 5sec to make sure we've got enough
 
-		  RTMP_Log(RTMP_LOGDEBUG,
-		      "Detected that buffer time is less than duration, resetting to: %dms",
-		      bufferTime);
-		  RTMP_SetBufferMS(rtmp, bufferTime);
-		  RTMP_UpdateBufferMS(rtmp);
-		}
-	      *percent = ((double) rtmp->m_read.timestamp) / (duration * 1000.0) * 100.0;
-	      *percent = ((double) (int) (*percent * 10.0)) / 10.0;
-	      if (bHashes)
-		{
-		  if (lastPercent + 1 <= *percent)
-		    {
-		      RTMP_LogStatus("#");
-		      lastPercent = (unsigned long) *percent;
-		    }
-		}
-	      else
-		{
-		  now = RTMP_GetTime();
-		  if (abs(now - lastUpdate) > 200)
-		    {
-		      RTMP_LogStatus("\r%.3f kB / %.2f sec (%.1f%%)",
-				(double) size / 1024.0,
-				(double) (rtmp->m_read.timestamp) / 1000.0, *percent);
-		      lastUpdate = now;
-		    }
-		}
+			  RTMP_Log(RTMP_LOGDEBUG,
+			      "Detected that buffer time is less than duration, resetting to: %dms",
+			      bufferTime);
+			  RTMP_SetBufferMS(rtmp, bufferTime);
+			  RTMP_UpdateBufferMS(rtmp);
+			}
+	        
+	        *percent = ((double) rtmp->m_read.timestamp) / (duration * 1000.0) * 100.0;
+	        *percent = ((double) (int) (*percent * 10.0)) / 10.0;
+	      
+	        if (bHashes)
+			{
+			    if (lastPercent + 1 <= *percent)
+			    {
+			      RTMP_LogStatus("#");
+			      lastPercent = (unsigned long) *percent;
+			    }
+			}
+	        else
+			{
+			  now = RTMP_GetTime();
+			  if (abs(now - lastUpdate) > 200)
+			    {
+			      RTMP_LogStatus("\r%.3f kB / %.2f sec (%.1f%%)",
+					(double) size / 1024.0,
+					(double) (rtmp->m_read.timestamp) / 1000.0, *percent);
+			      lastUpdate = now;
+			    }
+			}
 	    }
-	  else
+	    else
 	    {
-	      now = RTMP_GetTime();
-	      if (abs(now - lastUpdate) > 200)
-		{
-		  if (bHashes)
-		    RTMP_LogStatus("#");
-		  else
-		    RTMP_LogStatus("\r%.3f kB / %.2f sec", (double) size / 1024.0,
-			      (double) (rtmp->m_read.timestamp) / 1000.0);
-		  lastUpdate = now;
-		}
+	        now = RTMP_GetTime();
+	        if (abs(now - lastUpdate) > 200)
+			{
+			  if (bHashes)
+			    RTMP_LogStatus("#");
+			  else
+			    RTMP_LogStatus("\r%.3f kB / %.2f sec", (double) size / 1024.0,
+				      (double) (rtmp->m_read.timestamp) / 1000.0);
+			  lastUpdate = now;
+			}
 	    }
 	}
       else
@@ -600,19 +601,19 @@ Download(RTMP * rtmp,		// connected RTMP object
   /* Final status update */
   if (!bHashes)
     {
-      if (duration > 0)
-	{
-	  *percent = ((double) rtmp->m_read.timestamp) / (duration * 1000.0) * 100.0;
-	  *percent = ((double) (int) (*percent * 10.0)) / 10.0;
-	  RTMP_LogStatus("\r%.3f kB / %.2f sec (%.1f%%)",
-	    (double) size / 1024.0,
-	    (double) (rtmp->m_read.timestamp) / 1000.0, *percent);
-	}
-      else
-	{
-	  RTMP_LogStatus("\r%.3f kB / %.2f sec", (double) size / 1024.0,
-	    (double) (rtmp->m_read.timestamp) / 1000.0);
-	}
+        if (duration > 0)
+		{
+		  *percent = ((double) rtmp->m_read.timestamp) / (duration * 1000.0) * 100.0;
+		  *percent = ((double) (int) (*percent * 10.0)) / 10.0;
+		  RTMP_LogStatus("\r%.3f kB / %.2f sec (%.1f%%)",
+		    (double) size / 1024.0,
+		    (double) (rtmp->m_read.timestamp) / 1000.0, *percent);
+		}
+	      else
+		{
+		  RTMP_LogStatus("\r%.3f kB / %.2f sec", (double) size / 1024.0,
+		    (double) (rtmp->m_read.timestamp) / 1000.0);
+		}
     }
 
   RTMP_Log(RTMP_LOGDEBUG, "RTMP_Read returned: %d", nRead);

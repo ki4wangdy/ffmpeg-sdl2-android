@@ -1153,7 +1153,7 @@ RTMP_ToggleStream(RTMP *r)
       r->m_pausing = 1;
       sleep(1);
     }
-    
+
   res = RTMP_SendPause(r, FALSE, r->m_pauseStamp);
   r->m_pausing = 3;
   return res;
@@ -4511,13 +4511,13 @@ Read_1_Packet(RTMP *r, char *buf, unsigned int buflen)
        * invoke message Play.Stop or Play.Complete
        */
       if (rtnGetNextMediaPacket == 2)
-	{
-	  RTMP_Log(RTMP_LOGDEBUG,
-	      "Got Play.Complete or Play.Stop from server. "
-	      "Assuming stream is complete");
-	  ret = RTMP_READ_COMPLETE;
-	  break;
-	}
+    	{
+    	  RTMP_Log(RTMP_LOGDEBUG,
+    	      "Got Play.Complete or Play.Stop from server. "
+    	      "Assuming stream is complete");
+    	  ret = RTMP_READ_COMPLETE;
+    	  break;
+    	}
 
       r->m_read.dataType |= (((packet.m_packetType == RTMP_PACKET_TYPE_AUDIO) << 2) |
 			     (packet.m_packetType == RTMP_PACKET_TYPE_VIDEO));
@@ -4989,45 +4989,45 @@ fail:
   if (!(r->m_read.flags & RTMP_READ_HEADER))
     {
       if (!(r->m_read.flags & RTMP_READ_RESUME))
-	{
-	  char *mybuf = malloc(HEADERBUF), *end = mybuf + HEADERBUF;
-	  int cnt = 0;
-	  r->m_read.buf = mybuf;
-	  r->m_read.buflen = HEADERBUF;
+    	{
+    	  char *mybuf = malloc(HEADERBUF), *end = mybuf + HEADERBUF;
+    	  int cnt = 0;
+    	  r->m_read.buf = mybuf;
+    	  r->m_read.buflen = HEADERBUF;
 
-	  memcpy(mybuf, flvHeader, sizeof(flvHeader));
-	  r->m_read.buf += sizeof(flvHeader);
-	  r->m_read.buflen -= sizeof(flvHeader);
+    	  memcpy(mybuf, flvHeader, sizeof(flvHeader));
+    	  r->m_read.buf += sizeof(flvHeader);
+    	  r->m_read.buflen -= sizeof(flvHeader);
 
-	  while (r->m_read.timestamp == 0)
-	    {
-	      nRead = Read_1_Packet(r, r->m_read.buf, r->m_read.buflen);
-	      if (nRead < 0)
-		{
-		  free(mybuf);
-		  r->m_read.buf = NULL;
-		  r->m_read.buflen = 0;
-		  r->m_read.status = nRead;
-		  goto fail;
-		}
-	      /* buffer overflow, fix buffer and give up */
-	      if (r->m_read.buf < mybuf || r->m_read.buf > end) {
-	      	mybuf = realloc(mybuf, cnt + nRead);
-		memcpy(mybuf+cnt, r->m_read.buf, nRead);
-		r->m_read.buf = mybuf+cnt+nRead;
-	        break;
-	      }
-	      cnt += nRead;
-	      r->m_read.buf += nRead;
-	      r->m_read.buflen -= nRead;
-	      if (r->m_read.dataType == 5)
-	        break;
-	    }
-	  mybuf[4] = r->m_read.dataType;
-	  r->m_read.buflen = r->m_read.buf - mybuf;
-	  r->m_read.buf = mybuf;
-	  r->m_read.bufpos = mybuf;
-	}
+    	  while (r->m_read.timestamp == 0)
+    	    {
+    	      nRead = Read_1_Packet(r, r->m_read.buf, r->m_read.buflen);
+    	      if (nRead < 0)
+        		{
+        		  free(mybuf);
+        		  r->m_read.buf = NULL;
+        		  r->m_read.buflen = 0;
+        		  r->m_read.status = nRead;
+        		  goto fail;
+        		}
+    	      /* buffer overflow, fix buffer and give up */
+    	      if (r->m_read.buf < mybuf || r->m_read.buf > end) {
+    	      	mybuf = realloc(mybuf, cnt + nRead);
+          		memcpy(mybuf+cnt, r->m_read.buf, nRead);
+          		r->m_read.buf = mybuf+cnt+nRead;
+    	        break;
+    	      }
+    	      cnt += nRead;
+    	      r->m_read.buf += nRead;
+    	      r->m_read.buflen -= nRead;
+    	      if (r->m_read.dataType == 5)
+    	        break;
+    	    }
+      	  mybuf[4] = r->m_read.dataType;
+      	  r->m_read.buflen = r->m_read.buf - mybuf;
+      	  r->m_read.buf = mybuf;
+      	  r->m_read.bufpos = mybuf;
+    	}
       r->m_read.flags |= RTMP_READ_HEADER;
     }
 
@@ -5045,19 +5045,19 @@ fail:
     {
       nRead = r->m_read.buflen;
       if (nRead > size)
-	nRead = size;
+	     nRead = size;
       memcpy(buf, r->m_read.bufpos, nRead);
       r->m_read.buflen -= nRead;
       if (!r->m_read.buflen)
-	{
-	  free(r->m_read.buf);
-	  r->m_read.buf = NULL;
-	  r->m_read.bufpos = NULL;
-	}
+    	{
+    	  free(r->m_read.buf);
+    	  r->m_read.buf = NULL;
+    	  r->m_read.bufpos = NULL;
+    	}
       else
-	{
-	  r->m_read.bufpos += nRead;
-	}
+    	{
+    	  r->m_read.bufpos += nRead;
+    	}
       buf += nRead;
       total += nRead;
       size -= nRead;
