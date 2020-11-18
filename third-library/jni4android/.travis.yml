@@ -1,0 +1,18 @@
+language: cpp
+os:
+- linux
+- osx
+sudo: false
+compiler: clang
+cache:
+  timeout: 86400
+  directories:
+  - contrib
+addons:
+  apt:
+    packages:
+    - flex
+before_install:
+- ./.travis.before_install.sh
+before_script:
+- ./get-deps.sh
