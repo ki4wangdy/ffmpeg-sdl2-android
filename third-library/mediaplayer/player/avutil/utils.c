@@ -1,5 +1,5 @@
 
-#include "ijkutils.h"
+#include "utils.h"
 
 #include <string.h>
 #include <stdio.h>
@@ -7,7 +7,7 @@
 #include <ctype.h>
 #include <inttypes.h>
 
-void ijk_av_freep(void *arg)
+void av_freep(void *arg)
 {
     void *val;
 
@@ -16,7 +16,7 @@ void ijk_av_freep(void *arg)
     free(val);
 }
 
-int ijk_av_strstart(const char *str, const char *pfx, const char **ptr)
+int av_strstart(const char *str, const char *pfx, const char **ptr)
 {
     while (*pfx && *pfx == *str) {
         pfx++;
