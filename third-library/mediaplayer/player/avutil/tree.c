@@ -18,26 +18,26 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#include "ijktree.h"
+#include "tree.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <stddef.h>
 #include <string.h>
 
-typedef struct IjkAVTreeNode {
-    struct IjkAVTreeNode *child[2];
+typedef struct AVTreeNode {
+    struct AVTreeNode *child[2];
     void *elem;
     int state;
-} IjkAVTreeNode;
+} AVTreeNode;
 
-const int ijk_av_tree_node_size = sizeof(IjkAVTreeNode);
+const int av_tree_node_size = sizeof(AVTreeNode);
 
-struct IjkAVTreeNode *ijk_av_tree_node_alloc(void)
+struct AVTreeNode *av_tree_node_alloc(void)
 {
-    return calloc(1, sizeof(struct IjkAVTreeNode));
+    return calloc(1, sizeof(struct AVTreeNode));
 }
 
-void *ijk_av_tree_find(const IjkAVTreeNode *t, void *key,
+void *av_tree_find(const AVTreeNode *t, void *key,
                    int (*cmp)(const void *key, const void *b), void *next[2])
 {
     if (t) {
@@ -45,11 +45,11 @@ void *ijk_av_tree_find(const IjkAVTreeNode *t, void *key,
         if (v) {
             if (next)
                 next[v >> 31] = t->elem;
-            return ijk_av_tree_find(t->child[(v >> 31) ^ 1], key, cmp, next);
+            return av_tree_find(t->child[(v >> 31) ^ 1], key, cmp, next);
         } else {
             if (next) {
-                ijk_av_tree_find(t->child[0], key, cmp, next);
-                ijk_av_tree_find(t->child[1], key, cmp, next);
+                av_tree_find(t->child[0], key, cmp, next);
+                av_tree_find(t->child[1], key, cmp, next);
             }
             return t->elem;
         }
@@ -57,10 +57,10 @@ void *ijk_av_tree_find(const IjkAVTreeNode *t, void *key,
     return NULL;
 }
 
-void *ijk_av_tree_insert(IjkAVTreeNode **tp, void *key,
-                     int (*cmp)(const void *key, const void *b), IjkAVTreeNode **next)
+void *av_tree_insert(AVTreeNode **tp, void *key,
+                     int (*cmp)(const void *key, const void *b), AVTreeNode **next)
 {
-    IjkAVTreeNode *t = *tp;
+    AVTreeNode *t = *tp;
     if (t) {
         unsigned int v = cmp(t->elem, key);
         void *ret;
@@ -70,7 +70,7 @@ void *ijk_av_tree_insert(IjkAVTreeNode **tp, void *key,
             else if (t->child[0] || t->child[1]) {
                 int i = !t->child[0];
                 void *next_elem[2];
-                ijk_av_tree_find(t->child[i], key, cmp, next_elem);
+                av_tree_find(t->child[i], key, cmp, next_elem);
                 key = t->elem = next_elem[i];
                 v   = -i;
             } else {
@@ -79,10 +79,10 @@ void *ijk_av_tree_insert(IjkAVTreeNode **tp, void *key,
                 return NULL;
             }
         }
-        ret = ijk_av_tree_insert(&t->child[v >> 31], key, cmp, next);
+        ret = av_tree_insert(&t->child[v >> 31], key, cmp, next);
         if (!ret) {
             int i              = (v >> 31) ^ !!*next;
-            IjkAVTreeNode **child = &t->child[i];
+            AVTreeNode **child = &t->child[i];
             t->state += 2 * i - 1;
 
             if (!(t->state & 1)) {
@@ -144,26 +144,26 @@ void *ijk_av_tree_insert(IjkAVTreeNode **tp, void *key,
     }
 }
 
-void ijk_av_tree_destroy(IjkAVTreeNode *t)
+void av_tree_destroy(AVTreeNode *t)
 {
     if (t) {
-        ijk_av_tree_destroy(t->child[0]);
-        ijk_av_tree_destroy(t->child[1]);
+        av_tree_destroy(t->child[0]);
+        av_tree_destroy(t->child[1]);
         free(t);
     }
 }
 
-void ijk_av_tree_enumerate(IjkAVTreeNode *t, void *opaque,
+void av_tree_enumerate(AVTreeNode *t, void *opaque,
                        int (*cmp)(void *opaque, void *elem),
                        int (*enu)(void *opaque, void *elem))
 {
     if (t) {
         int v = cmp ? cmp(opaque, t->elem) : 0;
         if (v >= 0)
-            ijk_av_tree_enumerate(t->child[0], opaque, cmp, enu);
+            av_tree_enumerate(t->child[0], opaque, cmp, enu);
         if (v == 0)
             enu(opaque, t->elem);
         if (v <= 0)
-            ijk_av_tree_enumerate(t->child[1], opaque, cmp, enu);
+            av_tree_enumerate(t->child[1], opaque, cmp, enu);
     }
 }
