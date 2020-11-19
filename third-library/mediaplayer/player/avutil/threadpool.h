@@ -1,23 +1,23 @@
 /*
- * This file is part of ijkPlayer.
+ * This file is part of Player.
  *
- * ijkPlayer is free software; you can redistribute it and/or
+ * Player is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation; either
  * version 2.1 of the License, or (at your option) any later version.
  *
- * ijkPlayer is distributed in the hope that it will be useful,
+ * Player is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * Lesser General Public License for more details.
  *
- * You should have ijkPlayer a copy of the GNU Lesser General Public
+ * You should have Player a copy of the GNU Lesser General Public
  * License along with FFmpeg; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#ifndef _IJK_THREADPOOL_H_
-#define _IJK_THREADPOOL_H_
+#ifndef THREAD_POOL_H
+#define THREAD_POOL_H
 
 #include <pthread.h>
 
@@ -25,17 +25,17 @@
 #define MAX_QUEUE 1024
 
 typedef enum {
-    IJK_THREADPOOL_INVALID        = -1,
-    IJK_THREADPOOL_LOCK_FAILURE   = -2,
-    IJK_THREADPOOL_QUEUE_FULL     = -3,
-    IJK_THREADPOOL_SHUTDOWN       = -4,
-    IJK_THREADPOOL_THREAD_FAILURE = -5
-} IjkThreadPoolErrorType;
+    THREADPOOL_INVALID        = -1,
+    THREADPOOL_LOCK_FAILURE   = -2,
+    THREADPOOL_QUEUE_FULL     = -3,
+    THREADPOOL_SHUTDOWN       = -4,
+    THREADPOOL_THREAD_FAILURE = -5
+} ThreadPoolErrorType;
 
 typedef enum {
-    IJK_IMMEDIATE_SHUTDOWN = 1,
-    IJK_LEISURELY_SHUTDOWN = 2
-} IjkThreadPoolShutdownType;
+    IMMEDIATE_SHUTDOWN = 1,
+    LEISURELY_SHUTDOWN = 2
+} ThreadPoolShutdownType;
 
 typedef void (*Runable)(void *, void *);
 /**
@@ -47,11 +47,11 @@ typedef void (*Runable)(void *, void *);
  *  @var out_arg Argument to be passed to the call function.
  */
 
-typedef struct IjkThreadPoolTask {
+typedef struct ThreadPoolTask {
     Runable function;
     void *in_arg;
     void *out_arg;
-} IjkThreadPoolTask;
+} ThreadPoolTask;
 
 /**
  *  @struct ThreadPoolContext
@@ -68,11 +68,11 @@ typedef struct IjkThreadPoolTask {
  *  @var shutdown      Flag indicating if the pool is shutting down
  *  @var started       Number of started threads
  */
-typedef struct IjkThreadPoolContext {
+typedef struct ThreadPoolContext {
     pthread_mutex_t lock;
     pthread_cond_t notify;
     pthread_t *threads;
-    IjkThreadPoolTask *queue;
+    ThreadPoolTask *queue;
     int thread_count;
     int queue_size;
     int queue_head;
@@ -80,13 +80,13 @@ typedef struct IjkThreadPoolContext {
     int pending_count;
     int shutdown;
     int started_count;
-} IjkThreadPoolContext;
+} ThreadPoolContext;
 
-IjkThreadPoolContext *ijk_threadpool_create(int thread_count, int queue_size, int flags);
+ThreadPoolContext *threadpool_create(int thread_count, int queue_size, int flags);
 
-int ijk_threadpool_add(IjkThreadPoolContext *ctx, Runable function,
+int threadpool_add(ThreadPoolContext *ctx, Runable function,
                    void *in_arg, void *out_arg, int flags);
 
-int ijk_threadpool_destroy(IjkThreadPoolContext *ctx, int flags);
+int threadpool_destroy(ThreadPoolContext *ctx, int flags);
 
-#endif /* _IJK_THREADPOOL_H_ */
+#endif
