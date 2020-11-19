@@ -9,4 +9,4 @@ core目录的作用：
 
 2.将上述生成的j4a文件拷贝到core目录中的bin文件夹里
 
-3.core目录里的make命令
+3.进入core目录，执行configure&make
