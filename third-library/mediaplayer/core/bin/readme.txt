@@ -1,0 +1,3 @@
+前往jni4android文件夹，参考ReadMe
+
+先生成j4a的可执行文件

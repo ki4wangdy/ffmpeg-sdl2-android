@@ -1,4 +1,4 @@
-J4A = ../../extra/bin/j4a
+J4A = ./bin/j4a
 ROOT_CLASS_INCLUDES = j4a/j4a_allclasses.include.h
 ROOT_CLASS_LOADERS = j4a/j4a_allclasses.loader.h
 
