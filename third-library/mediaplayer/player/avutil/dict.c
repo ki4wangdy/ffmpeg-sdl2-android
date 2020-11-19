@@ -1,7 +1,4 @@
 /*
- * Copyright (c) 2016 Bilibili
- * Copyright (c) 2016 Raymond Zheng <raymondzheng1412@gmail.com>
- *
  * This file is part of FFmpeg.
  *
  * FFmpeg is free software; you can redistribute it and/or
@@ -19,26 +16,26 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#include "ijkdict.h"
-#include "ijkutils.h"
+#include "dict.h"
+#include "utils.h"
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
 #include <inttypes.h>
 
-struct IjkAVDictionary {
+struct AVDictionary {
     int count;
-    IjkAVDictionaryEntry *elems;
+    AVDictionaryEntry *elems;
 };
 
-int ijk_av_dict_count(const IjkAVDictionary *m)
+int av_dict_count(const AVDictionary *m)
 {
     return m ? m->count : 0;
 }
 
-IjkAVDictionaryEntry *ijk_av_dict_get(const IjkAVDictionary *m, const char *key,
-                               const IjkAVDictionaryEntry *prev, int flags)
+AVDictionaryEntry *av_dict_get(const AVDictionary *m, const char *key,
+                               const AVDictionaryEntry *prev, int flags)
 {
     unsigned int i, j;
 
@@ -52,7 +49,7 @@ IjkAVDictionaryEntry *ijk_av_dict_get(const IjkAVDictionary *m, const char *key,
 
     for (; i < m->count; i++) {
         const char *s = m->elems[i].key;
-        if (flags & IJK_AV_DICT_MATCH_CASE)
+        if (flags & AV_DICT_MATCH_CASE)
             for (j = 0; s[j] == key[j] && key[j]; j++)
                 ;
         else
@@ -60,50 +57,50 @@ IjkAVDictionaryEntry *ijk_av_dict_get(const IjkAVDictionary *m, const char *key,
                 ;
         if (key[j])
             continue;
-        if (s[j] && !(flags & IJK_AV_DICT_IGNORE_SUFFIX))
+        if (s[j] && !(flags & AV_DICT_IGNORE_SUFFIX))
             continue;
         return &m->elems[i];
     }
     return NULL;
 }
 
-int ijk_av_dict_set(IjkAVDictionary **pm, const char *key, const char *value,
+int av_dict_set(AVDictionary **pm, const char *key, const char *value,
                 int flags)
 {
-    IjkAVDictionary *m = *pm;
-    IjkAVDictionaryEntry *tag = NULL;
+    AVDictionary *m = *pm;
+    AVDictionaryEntry *tag = NULL;
     char *oldval = NULL, *copy_key = NULL, *copy_value = NULL;
 
-    if (!(flags & IJK_AV_DICT_MULTIKEY)) {
-        tag = ijk_av_dict_get(m, key, NULL, flags);
+    if (!(flags & AV_DICT_MULTIKEY)) {
+        tag = av_dict_get(m, key, NULL, flags);
     }
-    if (flags & IJK_AV_DICT_DONT_STRDUP_KEY)
+    if (flags & AV_DICT_DONT_STRDUP_KEY)
         copy_key = (void *)key;
     else
         copy_key = strdup(key);
-    if (flags & IJK_AV_DICT_DONT_STRDUP_VAL)
+    if (flags & AV_DICT_DONT_STRDUP_VAL)
         copy_value = (void *)value;
     else if (copy_key)
         copy_value = strdup(value);
     if (!m)
-        m = *pm = (IjkAVDictionary *)calloc(1, sizeof(*m));
+        m = *pm = (AVDictionary *)calloc(1, sizeof(*m));
     if (!m || (key && !copy_key) || (value && !copy_value))
         goto err_out;
 
     if (tag) {
-        if (flags & IJK_AV_DICT_DONT_OVERWRITE) {
+        if (flags & AV_DICT_DONT_OVERWRITE) {
             free(copy_key);
             free(copy_value);
             return 0;
         }
-        if (flags & IJK_AV_DICT_APPEND)
+        if (flags & AV_DICT_APPEND)
             oldval = tag->value;
         else
             free(tag->value);
             free(tag->key);
         *tag = m->elems[--m->count];
     } else if (copy_value) {
-        IjkAVDictionaryEntry *tmp = (IjkAVDictionaryEntry *)realloc(m->elems,
+        AVDictionaryEntry *tmp = (AVDictionaryEntry *)realloc(m->elems,
                                             (m->count + 1) * sizeof(*m->elems));
         if (!tmp)
             goto err_out;
@@ -112,67 +109,67 @@ int ijk_av_dict_set(IjkAVDictionary **pm, const char *key, const char *value,
     if (copy_value) {
         m->elems[m->count].key = copy_key;
         m->elems[m->count].value = copy_value;
-        if (oldval && flags & IJK_AV_DICT_APPEND) {
+        if (oldval && flags & AV_DICT_APPEND) {
             size_t len = strlen(oldval) + strlen(copy_value) + 1;
             char *newval = (char *)calloc(1, len);
             if (!newval)
                 goto err_out;
             strlcat(newval, oldval, len);
-            ijk_av_freep(&oldval);
+            av_freep(&oldval);
             strlcat(newval, copy_value, len);
             m->elems[m->count].value = newval;
-            ijk_av_freep(&copy_value);
+            av_freep(&copy_value);
         }
         m->count++;
     } else {
-        ijk_av_freep(&copy_key);
+        av_freep(&copy_key);
     }
     if (!m->count) {
-        ijk_av_freep(&m->elems);
-        ijk_av_freep(pm);
+        av_freep(&m->elems);
+        av_freep(pm);
     }
 
     return 0;
 
 err_out:
     if (m && !m->count) {
-        ijk_av_freep(&m->elems);
-        ijk_av_freep(pm);
+        av_freep(&m->elems);
+        av_freep(pm);
     }
     free(copy_key);
     free(copy_value);
     return -1;
 }
 
-int ijk_av_dict_set_int(IjkAVDictionary **pm, const char *key, int64_t value,
+int av_dict_set_int(AVDictionary **pm, const char *key, int64_t value,
                 int flags)
 {
     char valuestr[22];
     snprintf(valuestr, sizeof(valuestr), "%"PRId64, value);
-    flags &= ~IJK_AV_DICT_DONT_STRDUP_VAL;
-    return ijk_av_dict_set(pm, key, valuestr, flags);
+    flags &= ~AV_DICT_DONT_STRDUP_VAL;
+    return av_dict_set(pm, key, valuestr, flags);
 }
 
-void ijk_av_dict_free(IjkAVDictionary **pm)
+void av_dict_free(AVDictionary **pm)
 {
-    IjkAVDictionary *m = *pm;
+    AVDictionary *m = *pm;
 
     if (m) {
         while (m->count--) {
-            ijk_av_freep(&m->elems[m->count].key);
-            ijk_av_freep(&m->elems[m->count].value);
+            av_freep(&m->elems[m->count].key);
+            av_freep(&m->elems[m->count].value);
         }
-        ijk_av_freep(&m->elems);
+        av_freep(&m->elems);
     }
-    ijk_av_freep(pm);
+    av_freep(pm);
 }
 
-int ijk_av_dict_copy(IjkAVDictionary **dst, const IjkAVDictionary *src, int flags)
+int av_dict_copy(AVDictionary **dst, const AVDictionary *src, int flags)
 {
-    IjkAVDictionaryEntry *t = NULL;
+    AVDictionaryEntry *t = NULL;
 
-    while ((t = ijk_av_dict_get(src, "", t, IJK_AV_DICT_IGNORE_SUFFIX))) {
-        int ret = ijk_av_dict_set(dst, t->key, t->value, flags);
+    while ((t = av_dict_get(src, "", t, AV_DICT_IGNORE_SUFFIX))) {
+        int ret = av_dict_set(dst, t->key, t->value, flags);
         if (ret < 0)
             return ret;
     }
