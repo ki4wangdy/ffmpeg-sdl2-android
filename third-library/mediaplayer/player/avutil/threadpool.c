@@ -17,7 +17,6 @@
  */
 
 #include "threadpool.h"
-#include "libavutil/log.h"
 
 #include <stdlib.h>
 #include <unistd.h>
