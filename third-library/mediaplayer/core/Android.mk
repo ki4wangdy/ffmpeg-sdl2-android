@@ -42,7 +42,10 @@ LOCAL_SRC_FILES += j4a/class/tv/danmaku/ijk/media/player/IjkMediaPlayer.c
 LOCAL_SRC_FILES += j4au/class/android/media/AudioTrack.util.c
 LOCAL_SRC_FILES += j4au/class/java/nio/ByteBuffer.util.c
 
+#LOCAL_LDLIBS :=  -llog
+
 LOCAL_MODULE := ijkj4a
+#include $(BUILD_SHARED_LIBRARY)
 include $(BUILD_STATIC_LIBRARY)
 
 $(call import-module,android/cpufeatures)
