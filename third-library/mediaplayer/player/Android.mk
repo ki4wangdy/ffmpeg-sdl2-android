@@ -43,10 +43,12 @@ LOCAL_SRC_FILES += avutil/threadpool.c
 LOCAL_SRC_FILES += avutil/tree.c
 LOCAL_SRC_FILES += avutil/utils.c
 
+LOCAL_SRC_FILES += src/test.c
+
 # LOCAL_SHARED_LIBRARIES := ijkffmpeg ijksdl
 # LOCAL_STATIC_LIBRARIES := android-ndk-profiler ijksoundtouch
 
-LOCAL_STATIC_LIBRARIES := ijkj4a
+LOCAL_STATIC_LIBRARIES := ijkj4a x264
 
 LOCAL_LDLIBS += -llog
 
