@@ -50,7 +50,7 @@ LOCAL_SRC_FILES += src/test.c
 
 LOCAL_STATIC_LIBRARIES := ijkj4a x264
 
-LOCAL_LDLIBS += -llog
+LOCAL_LDLIBS += -llog -lc -lm -lz -ldl
 
 LOCAL_MODULE := mediaplayer
 
