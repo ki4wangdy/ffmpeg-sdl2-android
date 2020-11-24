@@ -48,7 +48,7 @@ LOCAL_SRC_FILES += src/test.c
 # LOCAL_SHARED_LIBRARIES := ijkffmpeg ijksdl
 # LOCAL_STATIC_LIBRARIES := android-ndk-profiler ijksoundtouch
 
-LOCAL_STATIC_LIBRARIES := ijkj4a x264
+LOCAL_STATIC_LIBRARIES := ijkj4a x264 ffmpeg
 
 LOCAL_LDLIBS += -llog -lc -lm -lz -ldl
 

@@ -5,9 +5,9 @@ include $(CLEAR_VARS)
 
 LOCAL_MODULE := ffmpeg
 
-LOCAL_SRC_FILES := $(LOCAL_PATH)/lib/armeabi-v7a/*.a
+LOCAL_SRC_FILES := $(LOCAL_PATH)/lib/armeabi-v7a/libffmpeg.so
 
-LOCAL_EXPORT_C_INCLUDES := $(LOCAL_PATH)/include/*
+LOCAL_EXPORT_C_INCLUDES := $(LOCAL_PATH)/include
 
-include $(PREBUILT_STATIC_LIBRARY)
+include $(PREBUILT_SHARED_LIBRARY)
 
