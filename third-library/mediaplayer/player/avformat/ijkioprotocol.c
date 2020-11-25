@@ -40,20 +40,20 @@ int ijkio_alloc_url(IjkURLContext **ph, const char *url) {
         h->prot = &ijkio_cache_protocol;
         h->priv_data = calloc(1, ijkio_cache_protocol.priv_data_size);
     } else if (!strncmp(url, "ffio:", strlen("ffio:"))) {
-        h = (IjkURLContext *)calloc(1, sizeof(IjkURLContext));
-        h->prot = &ijkio_ffio_protocol;
-        h->priv_data = calloc(1, ijkio_ffio_protocol.priv_data_size);
+        // h = (IjkURLContext *)calloc(1, sizeof(IjkURLContext));
+        // h->prot = &ijkio_ffio_protocol;
+        // h->priv_data = calloc(1, ijkio_ffio_protocol.priv_data_size);
     } else if (!strncmp(url, "httphook:", strlen("httphook:"))) {
-        h = (IjkURLContext *)calloc(1, sizeof(IjkURLContext));
-        h->prot = &ijkio_httphook_protocol;
-        h->priv_data = calloc(1, ijkio_httphook_protocol.priv_data_size);
+        // h = (IjkURLContext *)calloc(1, sizeof(IjkURLContext));
+        // h->prot = &ijkio_httphook_protocol;
+        // h->priv_data = calloc(1, ijkio_httphook_protocol.priv_data_size);
     }
 #ifdef __ANDROID__
-      else if (!strncmp(url, "androidio:", strlen("androidio:"))) {
-        h = (IjkURLContext *)calloc(1, sizeof(IjkURLContext));
-        h->prot = &ijkio_androidio_protocol;
-        h->priv_data = calloc(1, ijkio_androidio_protocol.priv_data_size);
-    }
+    //   else if (!strncmp(url, "androidio:", strlen("androidio:"))) {
+    //     h = (IjkURLContext *)calloc(1, sizeof(IjkURLContext));
+    //     h->prot = &ijkio_androidio_protocol;
+    //     h->priv_data = calloc(1, ijkio_androidio_protocol.priv_data_size);
+    // }
 #endif
       else {
         return -1;

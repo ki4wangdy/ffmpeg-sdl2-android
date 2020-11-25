@@ -51,6 +51,10 @@ LOCAL_SRC_FILES += avformat/ijkiomanager.c
 LOCAL_SRC_FILES += avformat/ijkioapplication.c
 LOCAL_SRC_FILES += avformat/ijkiocache.c
 LOCAL_SRC_FILES += avformat/ijkioprotocol.c
+LOCAL_SRC_FILES += avformat/ijklongurl.c
+
+# LOCAL_SRC_FILES += avformat/ijkurlhook.c
+# LOCAL_SRC_FILES +=. avformat/ijkioandroidio.c
 # LOCAL_SRC_FILES += avformat/ijkiourlhook.c
 # LOCAL_SRC_FILES += avformat/ijklivehook.c
 # LOCAL_SRC_FILES += avformat/ijkmediadatasource.c
