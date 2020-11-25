@@ -1,22 +1,26 @@
 /*
- * This file is part of player.
+ * Copyright (c) 2016 Bilibili
+ * Copyright (c) 2016 Raymond Zheng <raymondzheng1412@gmail.com>
  *
- * player is free software; you can redistribute it and/or
+ * This file is part of ijkplayer.
+ *
+ * ijkplayer is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation; either
  * version 2.1 of the License, or (at your option) any later version.
  *
- * player is distributed in the hope that it will be useful,
+ * ijkplayer is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * Lesser General Public License for more details.
  *
  * You should have received a copy of the GNU Lesser General Public
- * License along with player; if not, write to the Free Software
+ * License along with ijkplayer; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#include "threadpool.h"
+#include "ijkthreadpool.h"
+#include "libavutil/log.h"
 
 #include <stdlib.h>
 #include <unistd.h>
@@ -26,10 +30,10 @@
  * @brief the worker thread
  * @param threadpool the pool which own the thread
  */
-static void *threadpool_thread(void *pool_ctx)
+static void *ijk_threadpool_thread(void *pool_ctx)
 {
-    ThreadPoolContext *ctx = (ThreadPoolContext *)pool_ctx;
-    ThreadPoolTask task;
+    IjkThreadPoolContext *ctx = (IjkThreadPoolContext *)pool_ctx;
+    IjkThreadPoolTask task;
 
     for(;;) {
         pthread_mutex_lock(&(ctx->lock));
@@ -38,8 +42,8 @@ static void *threadpool_thread(void *pool_ctx)
             pthread_cond_wait(&(ctx->notify), &(ctx->lock));
         }
 
-        if((ctx->shutdown == IMMEDIATE_SHUTDOWN) ||
-           ((ctx->shutdown == LEISURELY_SHUTDOWN) &&
+        if((ctx->shutdown == IJK_IMMEDIATE_SHUTDOWN) ||
+           ((ctx->shutdown == IJK_LEISURELY_SHUTDOWN) &&
             (ctx->pending_count == 0))) {
                break;
            }
@@ -63,7 +67,7 @@ static void *threadpool_thread(void *pool_ctx)
     return(NULL);
 }
 
-int threadpool_free(ThreadPoolContext *ctx)
+int ijk_threadpool_free(IjkThreadPoolContext *ctx)
 {
     if(ctx == NULL || ctx->started_count > 0) {
         return -1;
@@ -85,16 +89,16 @@ int threadpool_free(ThreadPoolContext *ctx)
     return 0;
 }
 
-ThreadPoolContext *threadpool_create(int thread_count, int queue_size, int flags)
+IjkThreadPoolContext *ijk_threadpool_create(int thread_count, int queue_size, int flags)
 {
-    ThreadPoolContext *ctx;
+    IjkThreadPoolContext *ctx;
     int i;
 
     if(thread_count <= 0 || thread_count > MAX_THREADS || queue_size <= 0 || queue_size > MAX_QUEUE) {
         return NULL;
     }
 
-    if((ctx = (ThreadPoolContext *)calloc(1, sizeof(ThreadPoolContext))) == NULL) {
+    if((ctx = (IjkThreadPoolContext *)calloc(1, sizeof(IjkThreadPoolContext))) == NULL) {
         goto err;
     }
 
@@ -102,8 +106,8 @@ ThreadPoolContext *threadpool_create(int thread_count, int queue_size, int flags
 
     /* Allocate thread and task queue */
     ctx->threads = (pthread_t *)calloc(1, sizeof(pthread_t) * thread_count);
-    ctx->queue = (ThreadPoolTask *)calloc
-        (queue_size, sizeof(ThreadPoolTask));
+    ctx->queue = (IjkThreadPoolTask *)calloc
+        (queue_size, sizeof(IjkThreadPoolTask));
 
     /* Initialize mutex and conditional variable first */
     if((pthread_mutex_init(&(ctx->lock), NULL) != 0) ||
@@ -116,8 +120,8 @@ ThreadPoolContext *threadpool_create(int thread_count, int queue_size, int flags
     /* Start worker threads */
     for(i = 0; i < thread_count; i++) {
         if(pthread_create(&(ctx->threads[i]), NULL,
-                          threadpool_thread, (void*)ctx) != 0) {
-            threadpool_destroy(ctx, 0);
+                          ijk_threadpool_thread, (void*)ctx) != 0) {
+            ijk_threadpool_destroy(ctx, 0);
             return NULL;
         }
         ctx->thread_count++;
@@ -128,33 +132,33 @@ ThreadPoolContext *threadpool_create(int thread_count, int queue_size, int flags
 
  err:
     if(ctx) {
-        threadpool_free(ctx);
+        ijk_threadpool_free(ctx);
     }
     return NULL;
 }
 
-int threadpool_add(ThreadPoolContext *ctx, Runable function,
+int ijk_threadpool_add(IjkThreadPoolContext *ctx, Runable function,
                    void *in_arg, void *out_arg, int flags)
 {
     int err = 0;
     int next;
 
     if(ctx == NULL || function == NULL) {
-        return THREADPOOL_INVALID;
+        return IJK_THREADPOOL_INVALID;
     }
 
     if(pthread_mutex_lock(&(ctx->lock)) != 0) {
-        return THREADPOOL_LOCK_FAILURE;
+        return IJK_THREADPOOL_LOCK_FAILURE;
     }
 
     if (ctx->pending_count == MAX_QUEUE || ctx->pending_count == ctx->queue_size) {
         pthread_mutex_unlock(&ctx->lock);
-        return THREADPOOL_QUEUE_FULL;
+        return IJK_THREADPOOL_QUEUE_FULL;
     }
 
     if(ctx->pending_count == ctx->queue_size - 1) {
         int new_pueue_size = (ctx->queue_size * 2) > MAX_QUEUE ? MAX_QUEUE : (ctx->queue_size * 2);
-        ThreadPoolTask *new_queue = (ThreadPoolTask *)realloc(ctx->queue, sizeof(ThreadPoolTask) * new_pueue_size);
+        IjkThreadPoolTask *new_queue = (IjkThreadPoolTask *)realloc(ctx->queue, sizeof(IjkThreadPoolTask) * new_pueue_size);
         if (new_queue) {
             ctx->queue = new_queue;
             ctx->queue_size = new_pueue_size;
@@ -165,7 +169,7 @@ int threadpool_add(ThreadPoolContext *ctx, Runable function,
     do {
         /* Are we shutting down ? */
         if(ctx->shutdown) {
-            err = THREADPOOL_SHUTDOWN;
+            err = IJK_THREADPOOL_SHUTDOWN;
             break;
         }
 
@@ -178,46 +182,46 @@ int threadpool_add(ThreadPoolContext *ctx, Runable function,
 
         /* pthread_cond_broadcast */
         if(pthread_cond_signal(&(ctx->notify)) != 0) {
-            err = THREADPOOL_LOCK_FAILURE;
+            err = IJK_THREADPOOL_LOCK_FAILURE;
             break;
         }
     } while(0);
 
     if(pthread_mutex_unlock(&ctx->lock) != 0) {
-        err = THREADPOOL_LOCK_FAILURE;
+        err = IJK_THREADPOOL_LOCK_FAILURE;
     }
 
     return err;
 }
 
-static int threadpool_freep(ThreadPoolContext **ctx)
+static int ijk_threadpool_freep(IjkThreadPoolContext **ctx)
 {
     int ret = 0;
 
     if (!ctx || !*ctx)
         return -1;
 
-    ret = threadpool_free(*ctx);
+    ret = ijk_threadpool_free(*ctx);
     *ctx = NULL;
     return ret;
 }
 
-int threadpool_destroy(ThreadPoolContext *ctx, int flags)
+int ijk_threadpool_destroy(IjkThreadPoolContext *ctx, int flags)
 {
     int i, err = 0;
 
     if(ctx == NULL) {
-        return THREADPOOL_INVALID;
+        return IJK_THREADPOOL_INVALID;
     }
 
     if(pthread_mutex_lock(&(ctx->lock)) != 0) {
-        return THREADPOOL_LOCK_FAILURE;
+        return IJK_THREADPOOL_LOCK_FAILURE;
     }
 
     do {
         /* Already shutting down */
         if(ctx->shutdown) {
-            err = THREADPOOL_SHUTDOWN;
+            err = IJK_THREADPOOL_SHUTDOWN;
             break;
         }
 
@@ -226,21 +230,21 @@ int threadpool_destroy(ThreadPoolContext *ctx, int flags)
         /* Wake up all worker threads */
         if((pthread_cond_broadcast(&(ctx->notify)) != 0) ||
            (pthread_mutex_unlock(&(ctx->lock)) != 0)) {
-            err = THREADPOOL_LOCK_FAILURE;
+            err = IJK_THREADPOOL_LOCK_FAILURE;
             break;
         }
 
         /* Join all worker thread */
         for(i = 0; i < ctx->thread_count; i++) {
             if(pthread_join(ctx->threads[i], NULL) != 0) {
-                err = THREADPOOL_THREAD_FAILURE;
+                err = IJK_THREADPOOL_THREAD_FAILURE;
             }
         }
     } while(0);
 
     /* Only if everything went well do we deallocate the pool */
     if(!err) {
-        return threadpool_freep(&ctx);
+        return ijk_threadpool_freep(&ctx);
     }
     return err;
 }

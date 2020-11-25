@@ -1,26 +1,29 @@
 /*
- * This file is part of Player.
+ * Copyright (c) 2016 Bilibili
+ * Copyright (c) 2016 Raymond Zheng <raymondzheng1412@gmail.com>
  *
- * Player is free software; you can redistribute it and/or
+ * This file is part of ijkPlayer.
+ *
+ * ijkPlayer is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation; either
  * version 2.1 of the License, or (at your option) any later version.
  *
- * Player is distributed in the hope that it will be useful,
+ * ijkPlayer is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * Lesser General Public License for more details.
  *
  * You should have received a copy of the GNU Lesser General Public
- * License along with Player; if not, write to the Free Software
+ * License along with ijkPlayer; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#ifndef TREE_H
-#define TREE_H
+#ifndef IJKAVUTIL_IJKTREE_H
+#define IJKAVUTIL_IJKTREE_H
 
 /**
- * @addtogroup lavu_tree AVTree
+ * @addtogroup lavu_tree IjkAVTree
  * @ingroup lavu_data
  *
  * Low-complexity tree container
@@ -31,13 +34,13 @@
  */
 
 
-struct AVTreeNode;
-extern const int av_tree_node_size;
+struct IjkAVTreeNode;
+extern const int ijk_av_tree_node_size;
 
 /**
- * Allocate an AVTreeNode.
+ * Allocate an IjkAVTreeNode.
  */
-struct AVTreeNode *av_tree_node_alloc(void);
+struct IjkAVTreeNode *ijk_av_tree_node_alloc(void);
 
 /**
  * Find an element.
@@ -53,7 +56,7 @@ struct AVTreeNode *av_tree_node_alloc(void);
  * @return An element with cmp(key, elem) == 0 or NULL if no such element
  *         exists in the tree.
  */
-void *av_tree_find(const struct AVTreeNode *root, void *key,
+void *ijk_av_tree_find(const struct IjkAVTreeNode *root, void *key,
                    int (*cmp)(const void *key, const void *b), void *next[2]);
 
 /**
@@ -100,11 +103,11 @@ void *av_tree_find(const struct AVTreeNode *root, void *key,
  *         Which one it is depends on the tree state and the implementation. You
  *         should make no assumptions that it's one or the other in the code.
  */
-void *av_tree_insert(struct AVTreeNode **rootp, void *key,
+void *ijk_av_tree_insert(struct IjkAVTreeNode **rootp, void *key,
                      int (*cmp)(const void *key, const void *b),
-                     struct AVTreeNode **next);
+                     struct IjkAVTreeNode **next);
 
-void av_tree_destroy(struct AVTreeNode *t);
+void ijk_av_tree_destroy(struct IjkAVTreeNode *t);
 
 /**
  * Apply enu(opaque, &elem) to all the elements in the tree in a given range.
@@ -116,7 +119,7 @@ void av_tree_destroy(struct AVTreeNode *t);
  * @note The cmp function should use the same ordering used to construct the
  *       tree.
  */
-void av_tree_enumerate(struct AVTreeNode *t, void *opaque,
+void ijk_av_tree_enumerate(struct IjkAVTreeNode *t, void *opaque,
                        int (*cmp)(void *opaque, void *elem),
                        int (*enu)(void *opaque, void *elem));
 
@@ -124,4 +127,4 @@ void av_tree_enumerate(struct AVTreeNode *t, void *opaque,
  * @}
  */
 
-#endif 
+#endif /* IJKAVUTIL_IJKTREE_H */

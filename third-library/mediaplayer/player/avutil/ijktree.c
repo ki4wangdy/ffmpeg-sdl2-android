@@ -18,26 +18,26 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#include "tree.h"
+#include "ijktree.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <stddef.h>
 #include <string.h>
 
-typedef struct AVTreeNode {
-    struct AVTreeNode *child[2];
+typedef struct IjkAVTreeNode {
+    struct IjkAVTreeNode *child[2];
     void *elem;
     int state;
-} AVTreeNode;
+} IjkAVTreeNode;
 
-const int av_tree_node_size = sizeof(AVTreeNode);
+const int ijk_av_tree_node_size = sizeof(IjkAVTreeNode);
 
-struct AVTreeNode *av_tree_node_alloc(void)
+struct IjkAVTreeNode *ijk_av_tree_node_alloc(void)
 {
-    return calloc(1, sizeof(struct AVTreeNode));
+    return calloc(1, sizeof(struct IjkAVTreeNode));
 }
 
-void *av_tree_find(const AVTreeNode *t, void *key,
+void *ijk_av_tree_find(const IjkAVTreeNode *t, void *key,
                    int (*cmp)(const void *key, const void *b), void *next[2])
 {
     if (t) {
@@ -45,11 +45,11 @@ void *av_tree_find(const AVTreeNode *t, void *key,
         if (v) {
             if (next)
                 next[v >> 31] = t->elem;
-            return av_tree_find(t->child[(v >> 31) ^ 1], key, cmp, next);
+            return ijk_av_tree_find(t->child[(v >> 31) ^ 1], key, cmp, next);
         } else {
             if (next) {
-                av_tree_find(t->child[0], key, cmp, next);
-                av_tree_find(t->child[1], key, cmp, next);
+                ijk_av_tree_find(t->child[0], key, cmp, next);
+                ijk_av_tree_find(t->child[1], key, cmp, next);
             }
             return t->elem;
         }
@@ -57,10 +57,10 @@ void *av_tree_find(const AVTreeNode *t, void *key,
     return NULL;
 }
 
-void *av_tree_insert(AVTreeNode **tp, void *key,
-                     int (*cmp)(const void *key, const void *b), AVTreeNode **next)
+void *ijk_av_tree_insert(IjkAVTreeNode **tp, void *key,
+                     int (*cmp)(const void *key, const void *b), IjkAVTreeNode **next)
 {
-    AVTreeNode *t = *tp;
+    IjkAVTreeNode *t = *tp;
     if (t) {
         unsigned int v = cmp(t->elem, key);
         void *ret;
@@ -70,7 +70,7 @@ void *av_tree_insert(AVTreeNode **tp, void *key,
             else if (t->child[0] || t->child[1]) {
                 int i = !t->child[0];
                 void *next_elem[2];
-                av_tree_find(t->child[i], key, cmp, next_elem);
+                ijk_av_tree_find(t->child[i], key, cmp, next_elem);
                 key = t->elem = next_elem[i];
                 v   = -i;
             } else {
@@ -79,10 +79,10 @@ void *av_tree_insert(AVTreeNode **tp, void *key,
                 return NULL;
             }
         }
-        ret = av_tree_insert(&t->child[v >> 31], key, cmp, next);
+        ret = ijk_av_tree_insert(&t->child[v >> 31], key, cmp, next);
         if (!ret) {
             int i              = (v >> 31) ^ !!*next;
-            AVTreeNode **child = &t->child[i];
+            IjkAVTreeNode **child = &t->child[i];
             t->state += 2 * i - 1;
 
             if (!(t->state & 1)) {
@@ -144,26 +144,26 @@ void *av_tree_insert(AVTreeNode **tp, void *key,
     }
 }
 
-void av_tree_destroy(AVTreeNode *t)
+void ijk_av_tree_destroy(IjkAVTreeNode *t)
 {
     if (t) {
-        av_tree_destroy(t->child[0]);
-        av_tree_destroy(t->child[1]);
+        ijk_av_tree_destroy(t->child[0]);
+        ijk_av_tree_destroy(t->child[1]);
         free(t);
     }
 }
 
-void av_tree_enumerate(AVTreeNode *t, void *opaque,
+void ijk_av_tree_enumerate(IjkAVTreeNode *t, void *opaque,
                        int (*cmp)(void *opaque, void *elem),
                        int (*enu)(void *opaque, void *elem))
 {
     if (t) {
         int v = cmp ? cmp(opaque, t->elem) : 0;
         if (v >= 0)
-            av_tree_enumerate(t->child[0], opaque, cmp, enu);
+            ijk_av_tree_enumerate(t->child[0], opaque, cmp, enu);
         if (v == 0)
             enu(opaque, t->elem);
         if (v <= 0)
-            av_tree_enumerate(t->child[1], opaque, cmp, enu);
+            ijk_av_tree_enumerate(t->child[1], opaque, cmp, enu);
     }
 }
