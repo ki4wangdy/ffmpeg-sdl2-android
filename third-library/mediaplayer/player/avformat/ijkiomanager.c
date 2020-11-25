@@ -21,9 +21,9 @@
 
 #include "ijkiomanager.h"
 #include "ijkioprotocol.h"
-#include "ijkplayer/ijkavutil/ijkutils.h"
-#include "ijkplayer/ijkavutil/ijktree.h"
-#include "ijkplayer/ijkavutil/ijkstl.h"
+#include "avutil/ijkutils.h"
+#include "avutil/ijktree.h"
+#include "avutil/ijkstl.h"
 #include "libavutil/log.h"
 
 #include <stdlib.h>

@@ -22,8 +22,8 @@
 #ifndef IJKAVFORMAT_IJKIOAPPLICATION_H
 #define IJKAVFORMAT_IJKIOAPPLICATION_H
 
-#include "ijkplayer/ijkavutil/ijkutils.h"
-#include "ijkplayer/ijkavutil/ijkthreadpool.h"
+#include "avutil/ijkutils.h"
+#include "avutil/ijkthreadpool.h"
 
 #include <stdint.h>
 

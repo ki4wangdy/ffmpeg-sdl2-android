@@ -28,7 +28,7 @@ ifeq ($(TARGET_ARCH_ABI),armeabi-v7a)
 LOCAL_CFLAGS += -mfloat-abi=soft
 endif
 
-# LOCAL_CFLAGS += -std=c99
+LOCAL_CFLAGS += -std=c99
 
 LOCAL_C_INCLUDES += $(LOCAL_PATH)
 LOCAL_C_INCLUDES += $(realpath $(LOCAL_PATH)/..)
@@ -36,14 +36,24 @@ LOCAL_C_INCLUDES += $(realpath $(LOCAL_PATH)/..)
 LOCAL_C_INCLUDES += $(MY_APP_FFMPEG_INCLUDE_PATH)
 LOCAL_C_INCLUDES += $(realpath $(LOCAL_PATH)/../ijkj4a)
 
-LOCAL_SRC_FILES += avutil/dict.c
-LOCAL_SRC_FILES += avutil/fifo.c
-LOCAL_SRC_FILES += avutil/stl.cpp
-LOCAL_SRC_FILES += avutil/threadpool.c
-LOCAL_SRC_FILES += avutil/tree.c
-LOCAL_SRC_FILES += avutil/utils.c
+LOCAL_SRC_FILES += avutil/ijkdict.c
+LOCAL_SRC_FILES += avutil/ijkfifo.c
+LOCAL_SRC_FILES += avutil/ijkstl.cpp
+LOCAL_SRC_FILES += avutil/ijkthreadpool.c
+LOCAL_SRC_FILES += avutil/ijktree.c
+LOCAL_SRC_FILES += avutil/ijkutils.c
 
 LOCAL_SRC_FILES += src/test.c
+
+LOCAL_SRC_FILES += avformat/allformats.c
+LOCAL_SRC_FILES += avformat/ijkio.c
+LOCAL_SRC_FILES += avformat/ijkiomanager.c
+LOCAL_SRC_FILES += avformat/ijkioapplication.c
+LOCAL_SRC_FILES += avformat/ijkiocache.c
+LOCAL_SRC_FILES += avformat/ijkioprotocol.c
+# LOCAL_SRC_FILES += avformat/ijkiourlhook.c
+# LOCAL_SRC_FILES += avformat/ijklivehook.c
+# LOCAL_SRC_FILES += avformat/ijkmediadatasource.c
 
 # LOCAL_SHARED_LIBRARIES := ijkffmpeg ijksdl
 # LOCAL_STATIC_LIBRARIES := android-ndk-profiler ijksoundtouch

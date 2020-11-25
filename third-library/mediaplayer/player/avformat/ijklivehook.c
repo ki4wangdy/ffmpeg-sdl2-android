@@ -24,10 +24,10 @@
 #include "libavutil/avstring.h"
 #include "libavutil/opt.h"
 
-#include "ijkplayer/ijkavutil/opt.h"
+#include "avutil/opt.h"
 
 #include "ijkavformat.h"
-#include "libavutil/application.h"
+// #include "libavutil/application.h"
 
 typedef struct {
     AVClass         *class;
@@ -40,7 +40,7 @@ typedef struct {
     /* options */
     AVDictionary   *open_opts;
     int64_t         app_ctx_intptr;
-    AVApplicationContext *app_ctx;
+    // AVApplicationContext *app_ctx;
 } Context;
 
 static int ijkurlhook_call_inject(AVFormatContext *h)
@@ -53,15 +53,15 @@ static int ijkurlhook_call_inject(AVFormatContext *h)
         goto fail;
     }
 
-    if (c->app_ctx) {
-        av_log(h, AV_LOG_INFO, "livehook %s\n", c->io_control.url);
-        c->io_control.is_handled = 0;
-        ret = av_application_on_io_control(c->app_ctx, AVAPP_CTRL_WILL_LIVE_OPEN, &c->io_control);
-        if (ret || !c->io_control.url[0]) {
-            ret = AVERROR_EXIT;
-            goto fail;
-        }
-    }
+    // if (c->app_ctx) {
+    //     av_log(h, AV_LOG_INFO, "livehook %s\n", c->io_control.url);
+    //     c->io_control.is_handled = 0;
+    //     ret = av_application_on_io_control(c->app_ctx, AVAPP_CTRL_WILL_LIVE_OPEN, &c->io_control);
+    //     if (ret || !c->io_control.url[0]) {
+    //         ret = AVERROR_EXIT;
+    //         goto fail;
+    //     }
+    // }
 
     if (ff_check_interrupt(&h->interrupt_callback)) {
         ret = AVERROR_EXIT;
@@ -191,7 +191,7 @@ static int ijklivehook_read_header(AVFormatContext *avf, AVDictionary **options)
     const char *inner_url   = NULL;
     int         ret         = -1;
 
-    c->app_ctx = (AVApplicationContext *)(intptr_t)c->app_ctx_intptr;
+    // c->app_ctx = (AVApplicationContext *)(intptr_t)c->app_ctx_intptr;
     av_strstart(avf->filename, "ijklivehook:", &inner_url);
 
     c->io_control.size = sizeof(c->io_control);

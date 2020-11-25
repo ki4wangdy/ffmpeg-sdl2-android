@@ -25,7 +25,7 @@
 #define IJKAVFORMAT_IJKIOURL_H
 
 #include <stdint.h>
-#include "ijkplayer/ijkavutil/ijkdict.h"
+#include "avutil/ijkdict.h"
 #include "ijkioapplication.h"
 
 struct IjkURLProtocol;
