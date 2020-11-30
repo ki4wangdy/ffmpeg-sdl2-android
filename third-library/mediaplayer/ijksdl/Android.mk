@@ -32,12 +32,12 @@ LOCAL_C_INCLUDES += $(realpath $(LOCAL_PATH)/../ijkj4a)
 # LOCAL_SRC_FILES += ijksdl_aout.c
 # LOCAL_SRC_FILES += ijksdl_audio.c
 # LOCAL_SRC_FILES += ijksdl_egl.c
-# LOCAL_SRC_FILES += ijksdl_error.c
-# LOCAL_SRC_FILES += ijksdl_mutex.c
-# LOCAL_SRC_FILES += ijksdl_stdinc.c
-# LOCAL_SRC_FILES += ijksdl_thread.c
-# LOCAL_SRC_FILES += ijksdl_timer.c
-# LOCAL_SRC_FILES += ijksdl_vout.c
+LOCAL_SRC_FILES += ijksdl_error.c
+LOCAL_SRC_FILES += ijksdl_mutex.c
+LOCAL_SRC_FILES += ijksdl_stdinc.c
+LOCAL_SRC_FILES += ijksdl_thread.c
+LOCAL_SRC_FILES += ijksdl_timer.c
+LOCAL_SRC_FILES += ijksdl_vout.c
 LOCAL_SRC_FILES += ijksdl_extra_log.c
 
 # LOCAL_SRC_FILES += gles2/color.c
@@ -52,23 +52,23 @@ LOCAL_SRC_FILES += ijksdl_extra_log.c
 # LOCAL_SRC_FILES += gles2/fsh/yuv444p10le.fsh.c
 # LOCAL_SRC_FILES += gles2/vsh/mvp.vsh.c
 
-# LOCAL_SRC_FILES += dummy/ijksdl_vout_dummy.c
+LOCAL_SRC_FILES += dummy/ijksdl_vout_dummy.c
 
 # LOCAL_SRC_FILES += ffmpeg/ijksdl_vout_overlay_ffmpeg.c
 # LOCAL_SRC_FILES += ffmpeg/abi_all/image_convert.c
 
 # LOCAL_SRC_FILES += android/android_audiotrack.c
 # LOCAL_SRC_FILES += android/android_nativewindow.c
-# LOCAL_SRC_FILES += android/ijksdl_android_jni.c
+LOCAL_SRC_FILES += android/ijksdl_android_jni.c
 # LOCAL_SRC_FILES += android/ijksdl_aout_android_audiotrack.c
 # LOCAL_SRC_FILES += android/ijksdl_aout_android_opensles.c
 # LOCAL_SRC_FILES += android/ijksdl_codec_android_mediacodec_dummy.c
 # LOCAL_SRC_FILES += android/ijksdl_codec_android_mediacodec_internal.c
 # LOCAL_SRC_FILES += android/ijksdl_codec_android_mediacodec_java.c
 # LOCAL_SRC_FILES += android/ijksdl_codec_android_mediacodec.c
-# LOCAL_SRC_FILES += android/ijksdl_codec_android_mediadef.c
-# LOCAL_SRC_FILES += android/ijksdl_codec_android_mediaformat_java.c
-# LOCAL_SRC_FILES += android/ijksdl_codec_android_mediaformat.c
+LOCAL_SRC_FILES += android/ijksdl_codec_android_mediadef.c
+LOCAL_SRC_FILES += android/ijksdl_codec_android_mediaformat_java.c
+LOCAL_SRC_FILES += android/ijksdl_codec_android_mediaformat.c
 # LOCAL_SRC_FILES += android/ijksdl_vout_android_nativewindow.c
 # LOCAL_SRC_FILES += android/ijksdl_vout_android_surface.c
 # LOCAL_SRC_FILES += android/ijksdl_vout_overlay_android_mediacodec.c

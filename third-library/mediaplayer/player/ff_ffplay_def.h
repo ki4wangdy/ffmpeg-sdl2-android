@@ -59,8 +59,8 @@
 #endif
 
 #include <stdbool.h>
-#include "ijkavformat/ijkiomanager.h"
-#include "ijkavformat/ijkioapplication.h"
+#include "avformat/ijkiomanager.h"
+#include "avformat/ijkioapplication.h"
 #include "ff_ffinc.h"
 #include "ff_ffmsg_queue.h"
 #include "ff_ffpipenode.h"

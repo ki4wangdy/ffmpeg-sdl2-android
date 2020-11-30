@@ -28,7 +28,7 @@
 #include "ijksdl_inc_internal.h"
 #include "ijksdl_thread.h"
 #ifdef __ANDROID__
-#include "ijksdl/android/ijksdl_android_jni.h"
+#include "android/ijksdl_android_jni.h"
 #endif
 
 #if !defined(__APPLE__)
