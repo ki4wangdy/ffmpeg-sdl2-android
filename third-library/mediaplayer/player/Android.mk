@@ -53,6 +53,9 @@ LOCAL_SRC_FILES += avformat/ijkiocache.c
 LOCAL_SRC_FILES += avformat/ijkioprotocol.c
 LOCAL_SRC_FILES += avformat/ijklongurl.c
 
+# LOCAL_SRC_FILES += pipeline/ffpipeline_ffplay.c
+# LOCAL_SRC_FILES += pipeline/ffpipenode_ffplay_vdec.c
+
 # LOCAL_SRC_FILES += avformat/ijkurlhook.c
 # LOCAL_SRC_FILES +=. avformat/ijkioandroidio.c
 # LOCAL_SRC_FILES += avformat/ijkiourlhook.c
